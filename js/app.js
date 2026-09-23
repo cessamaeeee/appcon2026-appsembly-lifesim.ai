@@ -4,7 +4,7 @@
 // =========================================================================
 import { auth, db } from "../lib/firebase.ts";
 import { signInWithPopup, GoogleAuthProvider, createUserWithEmailAndPassword,
-  signInWithEmailAndPassword, signOut } from "firebase/auth";
+  signInWithEmailAndPassword, signOut, signInAnonymousl } from "firebase/auth";
 import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
 
 // --- 1. ZERO-DEPENDENCY 8-BIT SOUND SYNTHESIZER (Web Audio API) ---
@@ -1324,6 +1324,37 @@ const app = {
       console.log("Sign-out successful!");
     } catch (error) {
       console.error("Sign-out failed:", error);
+    }
+  },
+
+  async signInAsGuest() {
+    soundEngine.playPowerup();
+    try {
+      // Reuse an existing guest session so refreshes/clicks don't create new uids
+      const user = auth.currentUser?.isAnonymous
+        ? auth.currentUser
+        : (await signInAnonymously(auth)).user;
+
+      const userRef = doc(db, "users", user.uid);
+      const snap = await getDoc(userRef);
+
+      if (!snap.exists()) {
+        await setDoc(userRef, {
+          uid: user.uid,
+          email: null,
+          displayName: "Guest",
+          isAnonymous: true,
+          createdAt: serverTimestamp(),
+          lastLoginAt: serverTimestamp()
+        });
+      } else {
+        await setDoc(userRef, { lastLoginAt: serverTimestamp() }, { merge: true });
+      }
+
+      this.setUserSession({ uid: user.uid, name: "Guest", photo: null });
+      this.navTo('screen-class-select');
+    } catch (error) {
+      console.error("Guest sign-in failed:", error);
     }
   },
 
