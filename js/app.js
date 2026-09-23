@@ -4,7 +4,7 @@
 // =========================================================================
 import { auth, db } from "../lib/firebase.ts";
 import { signInWithPopup, GoogleAuthProvider, createUserWithEmailAndPassword,
-  signInWithEmailAndPassword } from "firebase/auth";
+  signInWithEmailAndPassword, signOut } from "firebase/auth";
 import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
 
 // --- 1. ZERO-DEPENDENCY 8-BIT SOUND SYNTHESIZER (Web Audio API) ---
@@ -1244,6 +1244,64 @@ const app = {
     }
   },
 
+  async signUpWithEmail(email, password) {
+    soundEngine.playPowerup();
+
+    try {
+      const result = await createUserWithEmailAndPassword(auth, email, password);
+      const user = result.user;
+
+      const userRef = doc(db, "users", user.uid);
+
+      await setDoc(userRef, {
+        uid: user.uid,
+        email: user.email,
+        displayName: user.displayName,
+        createdAt: serverTimestamp(),
+        lastLoginAt: serverTimestamp()
+      });
+
+      console.log("Email sign-up successful!");
+      console.log("UID:", user.uid);
+      console.log("Email:", user.email);
+
+      this.setUserSession({
+        uid: user.uid,
+        email: user.email,
+        name: user.displayName || user.email
+      });
+
+      this.navTo('screen-class-select');
+
+    } catch (error) {
+      console.error("Email sign-up failed:", error);
+    }
+  },
+
+  async signInWithEmail(email, password) {
+    soundEngine.playPowerup();
+
+    try {
+      const result = await signInWithEmailAndPassword(auth, email, password);
+      const user = result.user;
+
+      console.log("Email sign-in successful!");
+      console.log("UID:", user.uid);
+      console.log("Email:", user.email);
+
+      this.setUserSession({
+        uid: user.uid,
+        email: user.email,
+        name: user.displayName || user.email
+      });
+
+      this.navTo('screen-class-select');
+
+    } catch (error) {
+      console.error("Email sign-in failed:", error);
+    }
+  },
+
   setUserSession(user) {
     const badge = document.getElementById('userBadgeContainer');
     const img = document.getElementById('userAvatarImg');
@@ -1260,13 +1318,13 @@ const app = {
     document.getElementById('modalFbAuth').innerText = user.name;
   },
 
-  signOutUser() {
-    soundEngine.playBlip();
-    document.getElementById('userBadgeContainer').classList.add('hidden');
-    document.getElementById('userBadgeContainer').classList.remove('flex');
-    document.getElementById('topHeroHud').classList.add('hidden');
-    document.getElementById('topHeroHud').classList.remove('flex');
-    this.navTo('screen-title');
+  async signOutUser() {
+    try {
+      await signOut(auth);
+      console.log("Sign-out successful!");
+    } catch (error) {
+      console.error("Sign-out failed:", error);
+    }
   },
 
   selectClass(classKey) {
