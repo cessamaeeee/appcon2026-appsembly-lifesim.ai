@@ -4,7 +4,7 @@
 // =========================================================================
 import { auth, db } from "../lib/firebase.ts";
 import { signInWithPopup, GoogleAuthProvider, createUserWithEmailAndPassword,
-  signInWithEmailAndPassword, signOut, signInAnonymousl } from "firebase/auth";
+  signInWithEmailAndPassword, signOut, signInAnonymously } from "firebase/auth";
 import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
 
 // --- 1. ZERO-DEPENDENCY 8-BIT SOUND SYNTHESIZER (Web Audio API) ---
