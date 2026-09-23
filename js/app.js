@@ -2,7 +2,8 @@
 // LIFESIM.AI - THE MULTIVERSE ENGINE (PH EDITION)
 // CORE APPLICATION LOGIC: SOUND ENGINE, MODELS, SIMULATION & GEMINI AI
 // =========================================================================
-
+import { auth, db } from "../lib/firebase.ts";
+import { signInWithPopup, GoogleAuthProvider } from "firebase/auth";
 // --- 1. ZERO-DEPENDENCY 8-BIT SOUND SYNTHESIZER (Web Audio API) ---
 class RetroSoundEngine {
   constructor() {
@@ -1198,24 +1199,32 @@ const app = {
     this.closeAdminModal();
   },
 
-  signInWithGoogle() {
+  async signInWithGoogle() {
     soundEngine.playPowerup();
-    const demoUser = {
-      name: 'Google Authenticated Hero',
-      photo: 'https://api.dicebear.com/7.x/bottts/svg?seed=LifeSimPH'
-    };
-    this.setUserSession(demoUser);
-    this.navTo('screen-class-select');
-  },
 
-  signInAsGuest() {
-    soundEngine.playSelect();
-    const guestUser = {
-      name: 'Guest Adventurer',
-      photo: 'https://api.dicebear.com/7.x/pixel-art/svg?seed=GuestHero'
-    };
-    this.setUserSession(guestUser);
-    this.navTo('screen-class-select');
+    try {
+      const provider = new GoogleAuthProvider();
+
+      const result = await signInWithPopup(auth, provider);
+
+      const user = result.user;
+
+      console.log("Google sign-in successful!");
+      console.log("UID:", user.uid);
+      console.log("Email:", user.email);
+      console.log("Name:", user.displayName);
+
+      this.setUserSession({
+        uid: user.uid,
+        email: user.email,
+        name: user.displayName
+      });
+
+      this.navTo('screen-class-select');
+
+    } catch (error) {
+      console.error("Google sign-in failed:", error);
+    }
   },
 
   setUserSession(user) {
@@ -1957,6 +1966,7 @@ Return ONLY the raw JSON object, without markdown formatting.`;
     });
   }
 };
+window.app = app;
 
 // Global Shortcut: Ctrl + Shift + 1 for Admin Gemini API Key Modal
 document.addEventListener('keydown', (e) => {
