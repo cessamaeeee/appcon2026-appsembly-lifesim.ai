@@ -3,7 +3,10 @@
 // CORE APPLICATION LOGIC: SOUND ENGINE, MODELS, SIMULATION & GEMINI AI
 // =========================================================================
 import { auth, db } from "../lib/firebase.ts";
-import { signInWithPopup, GoogleAuthProvider } from "firebase/auth";
+import { signInWithPopup, GoogleAuthProvider, createUserWithEmailAndPassword,
+  signInWithEmailAndPassword } from "firebase/auth";
+import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
+
 // --- 1. ZERO-DEPENDENCY 8-BIT SOUND SYNTHESIZER (Web Audio API) ---
 class RetroSoundEngine {
   constructor() {
@@ -1204,10 +1207,24 @@ const app = {
 
     try {
       const provider = new GoogleAuthProvider();
-
       const result = await signInWithPopup(auth, provider);
-
       const user = result.user;
+      const userRef = doc(db, "users", user.uid);
+      const userSnap = await getDoc(userRef);
+
+      if (!userSnap.exists()) {
+        await setDoc(userRef, {
+          uid: user.uid,
+          email: user.email,
+          displayName: user.displayName,
+          createdAt: serverTimestamp(),
+          lastLoginAt: serverTimestamp()
+        });
+      } else {
+        await setDoc(userRef, {
+          lastLoginAt: serverTimestamp()
+        }, { merge: true });
+      }
 
       console.log("Google sign-in successful!");
       console.log("UID:", user.uid);
