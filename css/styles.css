@@ -1,0 +1,105 @@
+/* ========================================================================= */
+/* LIFESIM.AI - RETRO RPG MEETS NEO-BRUTALISM STYLESHEET                     */
+/* ========================================================================= */
+
+/* Custom Scrollbars */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: #0a0f1d;
+  border-left: 2px solid #141d33;
+}
+::-webkit-scrollbar-thumb {
+  background: #2d3e66;
+  border: 2px solid #0a0f1d;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #38bdf8;
+}
+
+/* CRT Scanlines Overlay */
+.crt-overlay {
+  background: linear-gradient(
+    rgba(18, 16, 16, 0) 50%, 
+    rgba(0, 0, 0, 0.25) 50%
+  ), linear-gradient(
+    90deg,
+    rgba(255, 0, 0, 0.03),
+    rgba(0, 255, 0, 0.01),
+    rgba(0, 0, 255, 0.03)
+  );
+  background-size: 100% 3px, 6px 100%;
+  pointer-events: none;
+}
+
+/* Pixelated borders & Retro Frame accents */
+.rpg-border {
+  border: 4px solid #020617;
+}
+.rpg-border-inner {
+  border: 2px solid #1e293b;
+}
+
+/* Interactive Neo-Brutalist Click Push */
+.btn-brutal {
+  transition: all 0.1s ease-in-out;
+}
+.btn-brutal:hover {
+  transform: translate(-2px, -2px);
+}
+.btn-brutal:active {
+  transform: translate(3px, 3px);
+  box-shadow: 1px 1px 0px 0px #020617 !important;
+}
+
+/* Range slider custom styling */
+input[type=range].retro-slider {
+  -webkit-appearance: none;
+  background: #0a0f1d;
+  height: 14px;
+  border: 3px solid #020617;
+  box-shadow: inset 2px 2px 0px #000;
+}
+input[type=range].retro-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  height: 28px;
+  width: 28px;
+  background: #fbbf24;
+  border: 3px solid #020617;
+  box-shadow: 3px 3px 0px #020617;
+  cursor: pointer;
+  border-radius: 0px;
+}
+input[type=range].retro-slider::-moz-range-thumb {
+  height: 28px;
+  width: 28px;
+  background: #fbbf24;
+  border: 3px solid #020617;
+  box-shadow: 3px 3px 0px #020617;
+  cursor: pointer;
+  border-radius: 0px;
+}
+
+/* Custom RPG Door Visual Assets with CSS */
+.door-wood-pattern {
+  background-color: #1e1b4b;
+  background-image: repeating-linear-gradient(0deg, #1e1b4b, #1e1b4b 16px, #17143a 16px, #17143a 32px);
+}
+.door-stone-pattern {
+  background-color: #064e3b;
+  background-image: repeating-linear-gradient(0deg, #064e3b, #064e3b 16px, #043d2e 16px, #043d2e 32px);
+}
+.door-void-pattern {
+  background-color: #3b0764;
+  background-image: repeating-linear-gradient(0deg, #3b0764, #3b0764 16px, #2e054f 16px, #2e054f 32px);
+}
+
+/* Subtle background dungeon grid */
+.dungeon-grid {
+  background-size: 32px 32px;
+  background-image: 
+    linear-gradient(to right, rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+}
