@@ -898,39 +898,82 @@
     </section>
 
     <!-- ========================================================================= -->
-    <!-- SCREEN 5: ENTERING THE PORTAL (Simulation Loading State)                   -->
+    <!-- SCREEN 5: ENTERING THE PORTAL (Active Multiverse Rift Loading State)       -->
     <!-- ========================================================================= -->
-    <section id="screen-portal-loading" class="screen-view hidden max-w-3xl mx-auto my-12 text-center">
-      <div class="bg-dungeon-900 border-4 border-slate-950 p-8 sm:p-12 shadow-brutal-lg relative overflow-hidden">
+    <section id="screen-portal-loading" class="screen-view hidden max-w-4xl mx-auto my-8 text-center space-y-6">
+      <div class="bg-dungeon-900 border-4 border-slate-950 p-6 sm:p-10 shadow-brutal-lg relative overflow-hidden">
         
-        <!-- Hyperspace Vortex Spinner -->
-        <div class="relative w-32 h-32 mx-auto mb-8">
-          <div class="absolute inset-0 rounded-full border-4 border-dashed border-indigo-500 animate-portal-spin"></div>
-          <div class="absolute inset-2 rounded-full border-4 border-dotted border-rpg-gold animate-[spin_6s_linear_infinite_reverse]"></div>
-          <div class="absolute inset-0 flex items-center justify-center text-4xl text-rpg-gold animate-pulse">
-            <i class="fa-solid fa-dice-d20"></i>
+        <!-- Background Ambient Glow -->
+        <div class="absolute -top-24 -left-24 w-64 h-64 bg-sky-500/15 rounded-full blur-3xl pointer-events-none"></div>
+        <div class="absolute -bottom-24 -right-24 w-64 h-64 bg-rpg-gold/15 rounded-full blur-3xl pointer-events-none"></div>
+
+        <!-- Header Telemetry Bar -->
+        <div class="flex flex-col sm:flex-row items-center justify-between border-b-2 border-slate-800 pb-3 mb-6 gap-2 text-xs font-mono text-slate-400">
+          <div class="flex items-center gap-2">
+            <span class="w-2.5 h-2.5 bg-rpg-gold animate-pulse"></span>
+            <span class="font-pixel text-[9px] text-rpg-gold uppercase tracking-wider">■ MANILA METRO PROTOCOL // V2.4_PH</span>
+          </div>
+          <div class="flex items-center gap-2">
+            <span class="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
+            <span class="font-pixel text-[9px] text-emerald-400 uppercase tracking-tight">RIFT STATUS: QUANTUM SYNTHESIS ACTIVE</span>
           </div>
         </div>
 
-        <span class="font-pixel text-[10px] text-rpg-mana uppercase tracking-widest block mb-2">Multiverse Rift Open</span>
-        <h2 id="portalLoadingScenarioTitle" class="font-pixel text-lg sm:text-2xl text-white mb-6">
+        <!-- Hyperspace Vortex Spinner Core -->
+        <div class="relative w-36 h-36 mx-auto mb-6">
+          <div class="absolute inset-0 rounded-full border-4 border-dashed border-sky-400 animate-portal-spin"></div>
+          <div class="absolute inset-2 rounded-full border-4 border-dotted border-rpg-gold animate-[spin_8s_linear_infinite_reverse]"></div>
+          <div class="absolute inset-4 rounded-full border-2 border-indigo-500/50 animate-ping opacity-30"></div>
+          <div class="absolute inset-0 flex items-center justify-center text-4xl text-rpg-gold animate-pulse">
+            <i class="fa-solid fa-dice-d20 drop-shadow-[0_0_12px_rgba(251,191,36,0.6)]"></i>
+          </div>
+        </div>
+
+        <span class="font-pixel text-[10px] text-sky-400 uppercase tracking-widest block mb-1">
+          // CONVERGING PARALLEL DESTINY TIMELINE //
+        </span>
+        <h2 id="portalLoadingScenarioTitle" class="font-pixel text-lg sm:text-2xl text-rpg-gold mb-3 drop-shadow-[0_2px_0_#020617]">
           SIMULATING TIMELINE: TECH PORTAL
         </h2>
 
+        <!-- Active Hero Baseline Telemetry Strip -->
+        <div id="portalHeroTelemetry" class="inline-flex flex-wrap items-center justify-center gap-2 sm:gap-4 bg-slate-950 border-2 border-slate-800 px-4 py-2 text-[11px] font-mono text-slate-300 shadow-brutal-sm mb-6 max-w-2xl mx-auto">
+          <span class="text-slate-400"><strong class="text-sky-300">HERO:</strong> <span id="telemetryHeroName">BPO Night Owl</span></span>
+          <span class="text-slate-600">|</span>
+          <span class="text-slate-400"><strong class="text-rpg-gold">BASE:</strong> <span id="telemetryHeroIncome">₱45k/mo</span></span>
+          <span class="text-slate-600">|</span>
+          <span class="text-slate-400"><strong class="text-emerald-300">BUFFER:</strong> <span id="telemetryHeroSavings">₱120k</span></span>
+          <span class="text-slate-600">|</span>
+          <span class="text-slate-400"><strong class="text-purple-300">AI:</strong> <span id="telemetryHeroAi">AiAugmented</span></span>
+        </div>
+
         <!-- Terminal Log Feed -->
-        <div class="bg-slate-950 border-3 border-slate-900 p-4 text-left font-terminal text-lg text-emerald-400 max-w-lg mx-auto shadow-brutal-sm min-h-[140px] flex flex-col justify-end space-y-1">
-          <div id="terminalLog1" class="opacity-40">> Initializing parallel state matrices...</div>
-          <div id="terminalLog2" class="opacity-70">> Factoring PSA inflation data (4.2% YoY)...</div>
-          <div id="terminalLog3" class="text-rpg-gold font-bold">> Simulating 10,000 parallel outcomes...</div>
+        <div class="bg-slate-950 border-3 border-slate-800 p-4 text-left font-mono text-xs sm:text-sm text-emerald-400 max-w-xl mx-auto shadow-brutal-sm min-h-[140px] flex flex-col justify-end space-y-1.5 overflow-hidden">
+          <div class="text-[9px] font-pixel text-slate-500 border-b border-slate-900 pb-1 mb-1">
+            // TELEMETRY LOG STREAM // 2026-2030 ECONOMIC FORECAST
+          </div>
+          <div id="terminalLog1" class="text-slate-400 opacity-60 text-[11px]">> [00.1s] Initializing multiverse state matrices (2026-2030)...</div>
+          <div id="terminalLog2" class="text-slate-300 opacity-80 text-[11px]">> [00.8s] Applying BIR Form 1701A (8% Gross Income Tax) optimization...</div>
+          <div id="terminalLog3" class="text-emerald-300 text-[11px]">> [01.5s] Factoring Sandwich Generation parent remittance drag...</div>
+          <div class="text-rpg-gold font-bold text-xs pt-1 flex items-center gap-2 border-t border-slate-900">
+            <span id="portalActiveStatusText">> CALIBRATING TIMELINE TRAJECTORIES...</span>
+            <span class="animate-pulse">█</span>
+          </div>
         </div>
 
         <!-- Simulation Progress Bar -->
-        <div class="w-full max-w-lg mx-auto bg-slate-950 h-5 border-2 border-slate-900 mt-6 p-0.5 shadow-brutal-sm">
-          <div id="portalProgressBar" class="bg-gradient-to-r from-cyan-500 via-indigo-500 to-rpg-gold h-full w-12 transition-all duration-300"></div>
+        <div class="max-w-xl mx-auto mt-6">
+          <div class="flex justify-between items-center text-[9px] font-pixel mb-1.5">
+            <span id="portalProgressStepText" class="text-sky-400">PHASE 2/5: EQUALIZER VECTOR CALIBRATION</span>
+            <span id="portalProgressPct" class="text-rpg-gold font-bold">45%</span>
+          </div>
+          <div class="w-full bg-slate-950 h-5 border-2 border-slate-800 p-0.5 shadow-brutal-sm relative overflow-hidden">
+            <div id="portalProgressBar" class="bg-gradient-to-r from-sky-400 via-indigo-500 to-rpg-gold h-full w-[25%] transition-all duration-300"></div>
+          </div>
         </div>
 
         <p class="font-mono text-xs text-slate-400 mt-4">
-          Synthesizing Starting Line, Sandwich Generation drag, and Equalizer multipliers...
+          Synthesizing Starting Line, Sandwich Generation drag, BIR 8% flat tax, and Pag-IBIG MP2 compounding...
         </p>
       </div>
     </section>

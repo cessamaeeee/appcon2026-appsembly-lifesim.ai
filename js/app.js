@@ -6,8 +6,9 @@ import { auth, db } from "../lib/firebase.ts";
 import { signInWithPopup, GoogleAuthProvider, createUserWithEmailAndPassword,
   signInWithEmailAndPassword, signOut, signInAnonymously } from "firebase/auth";
 import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
-import { calculateFallbackSimulation, sanitizeHeroState, SIMULATION_YEARS } from "./simulationEngine.js";
+import { calculateFallbackSimulation, buildDynamicCalculatedSimulation, sanitizeHeroState, SIMULATION_YEARS } from "./simulationEngine.js";
 import { ARCHETYPES, getArchetypes } from "./archetypeConfig.js";
+import { runSimulationPipeline, SIMULATION_TIMEOUT_MS } from "./simulationPipeline.js";
 
 // --- 1. ZERO-DEPENDENCY 8-BIT SOUND SYNTHESIZER (Web Audio API) ---
 class RetroSoundEngine {
@@ -567,99 +568,6 @@ let radarChart = null;
 let activeAiSimulationData = null;
 let whatIfVault = [];
 let activeWhatIfId = null;
-
-// Dynamic Algorithmic Synthesizer combining pure calculation engine with UI narrative enrichment
-function buildDynamicCalculatedSimulation(heroState, chosenPathway = 'Multiverse Pathway', scenarioKey = 'custom') {
-  const hero = sanitizeHeroState(heroState);
-  const location = heroState?.location || 'Metro Manila';
-  const className = heroState?.className || 'The Strategic Hero';
-  const isSandwich = hero.familyRemittance > 0 || hero.familySafetyNet === 'SandwichGen';
-
-  // 1. Execute pure calculation engine
-  const calculationResult = calculateFallbackSimulation(hero, scenarioKey, chosenPathway);
-  const simYears = calculationResult.years;
-
-  // 2. Attach UI narrative, phases, and curveball artifacts
-  SIMULATION_YEARS.forEach((yr, idx) => {
-    const monthlyIncome = simYears[yr].monthlyIncome;
-    const phases = [
-      `Phase 1: Groundwork & Setup in ${location}`,
-      `Phase 2: Transition & First Revenue Leap (₱${(monthlyIncome / 1000).toFixed(0)}k/mo)`,
-      `Phase 3: Asymmetric Scaling & Debt Elimination`,
-      `Phase 4: Sovereign Retainers & Family Fortress`,
-      `Phase 5: Financial Transcendence & Autonomy`
-    ];
-
-    const narratives = [
-      `Starting from ${location} as ${className}. You budget your ₱${hero.savings.toLocaleString()} initial safety net while managing ${isSandwich ? `₱${hero.familyRemittance.toLocaleString()}/mo family support` : 'personal living costs'}.`,
-      `Your ${hero.aiLeverage} skill leverage kicks in. Monthly income expands to ₱${monthlyIncome.toLocaleString()}, and debt burden is systematically crushed.`,
-      `The compound momentum of your network and skills takes hold. Living expenses remain disciplined, channeling surplus into Pag-IBIG MP2.`,
-      `You operate with full autonomy. Commute fatigue is fully eliminated, securing high-tier retainer clients across global markets.`,
-      `Sovereignty achieved. Monthly cashflow hits ₱${monthlyIncome.toLocaleString()}, yielding sustainable dividends and generational freedom for your family.`
-    ];
-
-    const curveballs = [
-      {
-        category: '⚡ Tech & Infrastructure Drift',
-        title: 'Workstation GPU & Connectivity Upgrade',
-        desc: `Hardware demands require ₱35,000 upgrade in ${location}. Covered by liquid buffer.`,
-        mitigation: 'Maintain 3 months emergency fund in digital banks (Maya/Seabank).'
-      },
-      {
-        category: '🏛️ Bureaucracy & Tax Optimization',
-        title: 'BIR Form 1701A (8% Flat Tax) Filing',
-        desc: 'Transitioning to 8% Gross Income Tax rate saves ₱80,000+ annually in income taxes.',
-        mitigation: 'Register books of accounts and issue electronic invoices on time.'
-      },
-      {
-        category: '🏥 Family Health Shield Activation',
-        title: 'Dependent Medical Emergency Test',
-        desc: `Family member health concern requires attention. Handled via ${hero.hmoShield} shield without depleting core capital.`,
-        mitigation: 'Maintain standalone HMO coverage for senior dependents.'
-      },
-      {
-        category: '📈 Macro Forex & Market Shift',
-        title: 'Global Contract Retainer Surge',
-        desc: 'Foreign client demand increases billing power by 25% due to high-speed AI output.',
-        mitigation: 'Lock in recurring retainers with milestone-based retainer agreements.'
-      },
-      {
-        category: '🏆 Sovereign Life Milestone',
-        title: 'Generational Independence Unlocked',
-        desc: `Net worth crosses landmark target. Passive yields cover 100% of family support and living costs.`,
-        mitigation: 'Diversify into conservative index assets and Pag-IBIG MP2.'
-      }
-    ];
-
-    simYears[yr].phase = phases[idx];
-    simYears[yr].narrative = narratives[idx];
-    simYears[yr].curveball = curveballs[idx];
-  });
-
-  return {
-    scenarioName: chosenPathway,
-    overallStrategicThesis: `AI Simulation for ${className} in ${location}: By choosing "${chosenPathway}", you leverage your ${hero.aiLeverage} capabilities and ${hero.socialCapital} network to overcome your ${isSandwich ? `₱${hero.familyRemittance.toLocaleString()}/mo family remittance obligation` : 'starting line limitations'}. Over 5 years, your income expands from ₱${hero.income.toLocaleString()}/mo to ₱${simYears['2030'].monthlyIncome.toLocaleString()}/mo while accumulating ₱${simYears['2030'].cumulativeSavings.toLocaleString()} in liquid wealth.`,
-    years: simYears,
-    quests: {
-      treasury: [
-        { id: 'q_t1', text: `Build emergency buffer of ₱${Math.round(hero.income * 3).toLocaleString()} in Maya/Seabank` },
-        { id: 'q_t2', text: `Automate monthly allocation into Pag-IBIG MP2 compounding fund` }
-      ],
-      skills: [
-        { id: 'q_s1', text: `Deploy Generative AI automation pipelines to 3x project delivery speed` },
-        { id: 'q_s2', text: `Build high-converting portfolio showcasing bespoke client case studies` }
-      ],
-      bureaucracy: [
-        { id: 'q_b1', text: `Register DTI/BIR Form 1701A (8% Flat Gross Income Tax)` },
-        { id: 'q_b2', text: `Maintain maximum voluntary SSS WISP Plus and PhilHealth contributions` }
-      ],
-      mana: [
-        { id: 'q_m1', text: `Enforce non-negotiable ergonomic workstation and sleep schedule` },
-        { id: 'q_m2', text: `Secure standalone health shield (HMO) for dependents` }
-      ]
-    }
-  };
-}
 
 // Master Live Gemini 1.5/2.0/3.6 Flash Multiverse Simulation Function
 async function generateFullAiSimulation(heroState, scenarioKey, customPrompt = '') {
@@ -1975,66 +1883,188 @@ Return ONLY the raw JSON object, without markdown formatting.`;
     if (btn) btn.disabled = false;
   },
 
+  loadingRiftInterval: null,
+
+  startLoadingRiftAnimation(pathwayTitle, heroState) {
+    if (this.loadingRiftInterval) {
+      clearInterval(this.loadingRiftInterval);
+      this.loadingRiftInterval = null;
+    }
+
+    const titleEl = document.getElementById('portalLoadingScenarioTitle');
+    const heroNameEl = document.getElementById('telemetryHeroName');
+    const heroIncomeEl = document.getElementById('telemetryHeroIncome');
+    const heroSavingsEl = document.getElementById('telemetryHeroSavings');
+    const heroAiEl = document.getElementById('telemetryHeroAi');
+    const log1 = document.getElementById('terminalLog1');
+    const log2 = document.getElementById('terminalLog2');
+    const log3 = document.getElementById('terminalLog3');
+    const statusText = document.getElementById('portalActiveStatusText');
+    const progressBar = document.getElementById('portalProgressBar');
+    const progressStep = document.getElementById('portalProgressStepText');
+    const progressPct = document.getElementById('portalProgressPct');
+
+    if (titleEl) titleEl.innerText = `SIMULATING TIMELINE: ${pathwayTitle.toUpperCase()}`;
+    if (heroNameEl) heroNameEl.innerText = heroState.className || hero.className;
+    if (heroIncomeEl) heroIncomeEl.innerText = `₱${Math.round((heroState.income || hero.income) / 1000)}k/mo`;
+    if (heroSavingsEl) heroSavingsEl.innerText = `₱${Math.round((heroState.savings || hero.savings) / 1000)}k`;
+    if (heroAiEl) heroAiEl.innerText = heroState.aiLeverage || hero.aiLeverage;
+
+    const isSandwich = (heroState.familyRemittance || hero.familyRemittance) > 0 || (heroState.familySafetyNet || hero.familySafetyNet) === 'SandwichGen';
+
+    const phases = [
+      {
+        step: 'PHASE 1/5: INITIALIZING RIFT PROTOCOL',
+        status: 'INITIALIZING MULTIVERSE RIFT PROTOCOL...',
+        pct: 20,
+        log1: `> [00.1s] Telemetry link established for ${heroState.className || hero.className}...`,
+        log2: `> [00.3s] Respawn Zone: ${heroState.location || hero.location} (Base: ₱${(heroState.income || hero.income).toLocaleString()}/mo)...`,
+        log3: `> [00.6s] Ingesting Starting Line privilege and family safety net matrix...`
+      },
+      {
+        step: 'PHASE 2/5: PHILIPPINE ECONOMIC CALIBRATION',
+        status: 'CALIBRATING PHILIPPINE ECONOMIC REALITIES (BIR 8% & INFLATION)...',
+        pct: 42,
+        log1: `> [00.9s] Optimizing BIR Form 1701A (8% Flat Gross Income Tax) brackets...`,
+        log2: `> [01.2s] ${isSandwich ? `Factoring ₱${(heroState.familyRemittance || hero.familyRemittance).toLocaleString()}/mo family remittance drain...` : 'Zero parental remittance burden confirmed...'}`,
+        log3: `> [01.5s] Computing daily EDSA/transit fatigue penalty (${heroState.commuteHours || hero.commuteHours}h/day)...`
+      },
+      {
+        step: 'PHASE 3/5: EQUALIZER VECTOR INTEGRATION',
+        status: 'SYNCING EQUALIZER FACTORS (AI LEVERAGE & NETWORK MULTIPLIERS)...',
+        pct: 65,
+        log1: `> [01.8s] Applying AI Leverage Multiplier: ${heroState.aiLeverage || hero.aiLeverage}...`,
+        log2: `> [02.1s] Channeling Social Capital Network: ${heroState.socialCapital || hero.socialCapital}...`,
+        log3: `> [02.4s] Health Shield: ${heroState.hmoShield || hero.hmoShield} coverage armed against medical curveballs...`
+      },
+      {
+        step: 'PHASE 4/5: 5-YEAR COMPOUNDING & MP2 FORECASTING',
+        status: 'COMPOUNDING PAG-IBIG MP2 & 5-YEAR WEALTH TRAJECTORIES...',
+        pct: 85,
+        log1: `> [02.7s] Simulating 10,000 Monte Carlo outcome distributions (2026-2030)...`,
+        log2: `> [03.0s] Compounding Pag-IBIG MP2 dividend yields (~7.0% p.a.)...`,
+        log3: `> [03.3s] Synthesizing 5-year yearly cashflows & localized curveballs...`
+      },
+      {
+        step: 'PHASE 5/5: ACTION QUESTS & DECREE SYNTHESIS',
+        status: 'SYNTHESIZING PARALLEL DESTINY DECREE & ACTION QUESTS...',
+        pct: 94,
+        log1: `> [03.6s] Formulating tactical quests across Treasury, Skills, Bureaucracy, Mana...`,
+        log2: `> [03.9s] Converging parallel probability nodes into coherent life trajectory...`,
+        log3: `> [04.2s] Timeline convergence verified. Preparing Dashboard telemetry...`
+      }
+    ];
+
+    let currentPhaseIndex = 0;
+
+    const renderPhase = (p) => {
+      soundEngine.playBlip();
+      if (progressStep) progressStep.innerText = p.step;
+      if (statusText) statusText.innerText = `> ${p.status}`;
+      if (progressPct) progressPct.innerText = `${p.pct}%`;
+      if (progressBar) progressBar.style.width = `${p.pct}%`;
+      if (log1) log1.innerText = p.log1;
+      if (log2) log2.innerText = p.log2;
+      if (log3) log3.innerText = p.log3;
+    };
+
+    renderPhase(phases[0]);
+
+    this.loadingRiftInterval = setInterval(() => {
+      currentPhaseIndex = currentPhaseIndex + 1;
+      if (currentPhaseIndex < phases.length) {
+        renderPhase(phases[currentPhaseIndex]);
+      } else {
+        if (progressBar) progressBar.style.width = '96%';
+        if (progressPct) progressPct.innerText = '96%';
+        if (statusText) {
+          const cyclingPhrases = [
+            'COMPILING MULTIVERSE DATA...',
+            'FINALIZING SOVEREIGN CASHFLOW MATRIX...',
+            'CALIBRATING TIMELINE TRAJECTORIES...',
+            'SYNTHESIZING GEMINI AI FORESIGHT...'
+          ];
+          const randomPhrase = cyclingPhrases[Math.floor(Math.random() * cyclingPhrases.length)];
+          statusText.innerText = `> ${randomPhrase}`;
+        }
+      }
+    }, 1800);
+  },
+
+  stopLoadingRiftAnimation() {
+    if (this.loadingRiftInterval) {
+      clearInterval(this.loadingRiftInterval);
+      this.loadingRiftInterval = null;
+    }
+  },
+
   async enterPortal(scenarioKey, customPrompt = '') {
     activeScenarioKey = scenarioKey;
-    const scenarioNames = {
-      tech: 'IT & Cybersecurity Cloud Consulting',
-      nomad: 'Coastal Provincial Remote WFH',
-      corp: 'Independent High-Leverage PH Business',
-      custom: customPrompt || 'Bespoke Multiverse Pathway'
+    const pathwayNames = {
+      tech: 'Shift to High-Income IT, Cloud & Cybersecurity Consulting',
+      nomad: 'Relocate to Coastal Province on 100% Asynchronous WFH',
+      corp: 'Launch an Independent High-Leverage Philippine Business Venture',
+      custom: customPrompt || 'Custom Strategic Multiverse Pathway'
     };
-    const pathwayTitle = scenarioNames[scenarioKey] || customPrompt || 'Custom Multiverse Timeline';
+    const pathwayTitle = pathwayNames[scenarioKey] || customPrompt || 'Bespoke Multiverse Pathway';
     soundEngine.playDoorHum();
 
     this.navTo('screen-portal-loading');
-    document.getElementById('portalLoadingScenarioTitle').innerText = `GEMINI AI SIMULATING TIMELINE: ${pathwayTitle.toUpperCase()}`;
+    this.startLoadingRiftAnimation(pathwayTitle, hero);
 
-    const isSandwich = hero.familySafetyNet === 'SandwichGen' || hero.familyRemittance > 0;
-    const sandwichLog = isSandwich ? `Factoring ₱${hero.familyRemittance.toLocaleString()}/mo family remittance drag...` : 'Zero family remittance burden...';
-    const activeModel = localStorage.getItem('lifesim_gemini_model') || 'gemini-3.6-flash';
+    // Run simulation pipeline in parallel with minimum dwell duration (2.2s)
+    const minDwellPromise = new Promise(resolve => setTimeout(resolve, 2200));
 
-    const logs = [
-      { t: 0, l1: `> Opening timeline rift with ${activeModel}...`, l2: `> Sending Hero baseline (Income: ₱${hero.income.toLocaleString()}/mo | Savings: ₱${hero.savings.toLocaleString()})...`, l3: `> ${sandwichLog}`, p: '30%' },
-      { t: 1000, l1: `> Computing Equalizer velocity: AI Leverage (${hero.aiLeverage}) + Social Capital (${hero.socialCapital})...`, l2: `> Health Shield: ${hero.hmoShield} | Commute: ${hero.commuteHours}h/day...`, l3: `> Synthesizing 2026-2030 yearly cashflows & localized curveballs...`, p: '65%' },
-      { t: 2200, l1: `> Converging 5-Year Philippine probability distribution nodes...`, l2: `> Compounding Pag-IBIG MP2 and sovereign cashflow matrix...`, l3: `> Complete AI Multiverse Generated! Launching Dashboard...`, p: '100%' }
-    ];
-
-    logs.forEach(step => {
-      setTimeout(() => {
-        soundEngine.playBlip();
-        document.getElementById('terminalLog1').innerText = step.l1;
-        document.getElementById('terminalLog2').innerText = step.l2;
-        document.getElementById('terminalLog3').innerText = step.l3;
-        document.getElementById('portalProgressBar').style.width = step.p;
-      }, step.t);
-    });
-
-    // Launch Full Live AI Simulation
-    const aiSimPromise = generateFullAiSimulation(hero, scenarioKey, customPrompt);
-
+    let simResult;
     try {
-      activeAiSimulationData = await aiSimPromise;
+      const [result] = await Promise.all([
+        runSimulationPipeline(hero, scenarioKey, customPrompt, generateFullAiSimulation),
+        minDwellPromise
+      ]);
+      simResult = result;
     } catch (err) {
-      console.warn("AI Simulation encountered error, using dynamic calculated engine:", err);
-      activeAiSimulationData = buildDynamicCalculatedSimulation(hero, pathwayTitle, scenarioKey);
+      console.warn("Simulation pipeline encountered error, generating fallback simulation:", err);
+      simResult = buildDynamicCalculatedSimulation(hero, pathwayTitle, scenarioKey);
     }
 
-    // Save into What-If Vault
-    activeAiSimulationData.id = 'whatif_' + Date.now();
-    activeAiSimulationData.createdAt = new Date().toLocaleTimeString('en-PH', { hour: '2-digit', minute: '2-digit' });
-    activeAiSimulationData.heroName = hero.className;
-    activeAiSimulationData.heroAge = hero.age;
-    activeAiSimulationData.scenarioKey = scenarioKey;
-    activeWhatIfId = activeAiSimulationData.id;
+    this.stopLoadingRiftAnimation();
 
-    // Check if timeline with same title exists, update it or prepend
-    const existingIndex = whatIfVault.findIndex(v => v.scenarioName === activeAiSimulationData.scenarioName);
+    // Finalize Loading UI visual state
+    const progressBar = document.getElementById('portalProgressBar');
+    const progressPct = document.getElementById('portalProgressPct');
+    const progressStep = document.getElementById('portalProgressStepText');
+    const statusText = document.getElementById('portalActiveStatusText');
+    const log3 = document.getElementById('terminalLog3');
+
+    if (progressBar) progressBar.style.width = '100%';
+    if (progressPct) progressPct.innerText = '100%';
+    if (progressStep) progressStep.innerText = 'PARALLEL DESTINY SYNTHESIZED!';
+    if (statusText) statusText.innerText = '> TIMELINE COMPLETE! ENTERING DESTINY DASHBOARD...';
+    if (log3) log3.innerText = `> [COMPLETE] ${simResult.isAiGenerated ? '✨ Gemini AI Multiverse Generated!' : '⚡ Localized Engine Trajectory Calculated!'}`;
+
+    // Attach metadata
+    simResult.id = 'whatif_' + Date.now();
+    simResult.createdAt = new Date().toLocaleTimeString('en-PH', { hour: '2-digit', minute: '2-digit' });
+    simResult.heroName = hero.className;
+    simResult.heroAge = hero.age;
+    simResult.scenarioKey = scenarioKey;
+
+    // Save into shared state and sessionStorage / localStorage
+    activeAiSimulationData = simResult;
+    activeWhatIfId = simResult.id;
+    try {
+      sessionStorage.setItem('lifesim_active_simulation', JSON.stringify(simResult));
+    } catch (e) {}
+
+    const existingIndex = whatIfVault.findIndex(v => v.scenarioName === simResult.scenarioName);
     if (existingIndex >= 0) {
-      whatIfVault[existingIndex] = activeAiSimulationData;
+      whatIfVault[existingIndex] = simResult;
     } else {
-      whatIfVault.unshift(activeAiSimulationData);
+      whatIfVault.unshift(simResult);
     }
-    localStorage.setItem('lifesim_whatif_vault', JSON.stringify(whatIfVault));
+    try {
+      localStorage.setItem('lifesim_whatif_vault', JSON.stringify(whatIfVault));
+    } catch (e) {}
 
     setTimeout(() => {
       soundEngine.playLevelUp();
@@ -2043,7 +2073,7 @@ Return ONLY the raw JSON object, without markdown formatting.`;
       timelineEngine.setYear(2026);
       timelineEngine.initCharts();
       this.navTo('screen-dashboard');
-    }, 2800);
+    }, 450);
   },
 
   renderWhatIfSwitcher() {
