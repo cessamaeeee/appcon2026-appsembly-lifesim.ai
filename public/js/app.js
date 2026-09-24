@@ -2162,7 +2162,15 @@ const app = {
       
       if (input) input.value = savedKey;
       if (sel) {
-        if (['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-1.5-pro'].includes(savedModel)) {
+        const standardModels = [
+          'gemini-3.8-flash',
+          'gemini-3.7-flash',
+          'gemini-3.6-flash',
+          'gemini-3.5-flash',
+          'gemini-3.5-flash-lite',
+          'gemini-3.1-flash-lite'
+        ];
+        if (standardModels.includes(savedModel)) {
           sel.value = savedModel;
           if (customWrap) customWrap.classList.add('hidden');
         } else {
@@ -2194,7 +2202,7 @@ const app = {
     const key = document.getElementById('inputGeminiApiKey')?.value.trim();
     const sel = document.getElementById('selectGeminiModel')?.value;
     const customTag = document.getElementById('inputCustomGeminiModel')?.value.trim();
-    const model = sel === 'custom' ? (customTag || 'gemini-2.5-flash') : (sel || 'gemini-2.5-flash');
+    const model = sel === 'custom' ? (customTag || 'gemini-3.8-flash') : (sel || 'gemini-3.8-flash');
 
     geminiService.setApiKey(key);
     geminiService.setModel(model);

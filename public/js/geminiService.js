@@ -26,7 +26,7 @@ const geminiService = {
   },
 
   getModel() {
-    return localStorage.getItem('lifesim_gemini_model') || 'gemini-2.5-flash';
+    return localStorage.getItem('lifesim_gemini_model') || 'gemini-3.8-flash';
   },
 
   setModel(model) {
@@ -62,7 +62,7 @@ const geminiService = {
   async queryModel(prompt, modelName = null) {
     const apiKey = this.getApiKey();
     if (modelName == null) {
-      console.warn("[geminiService] No model name provided, using default 'gemini-2.5-flash'.");
+      console.warn("[geminiService] No model name provided, using default 'gemini-3.8-flash'.");
     }
     if (!apiKey) {
       if (!this.isAiAuthorized()) {
@@ -71,8 +71,16 @@ const geminiService = {
       throw new Error('NO_API_KEY: Please configure your Gemini API Key in the AI Settings (Ctrl+Shift+1).');
     }
 
-    const primaryModel = modelName || this.getModel() || 'gemini-2.5-flash';
-    const candidateModels = [primaryModel, 'gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash'].filter((m, i, arr) => m && arr.indexOf(m) === i);
+    const primaryModel = modelName || this.getModel() || 'gemini-3.8-flash';
+    const fallbackList = [
+      'gemini-3.8-flash',
+      'gemini-3.7-flash',
+      'gemini-3.6-flash',
+      'gemini-3.5-flash',
+      'gemini-3.5-flash-lite',
+      'gemini-3.1-flash-lite'
+    ];
+    const candidateModels = [primaryModel, ...fallbackList].filter((m, i, arr) => m && arr.indexOf(m) === i);
 
     let lastError = null;
 
@@ -443,7 +451,14 @@ Return ONLY a strictly valid JSON object matching this schema without markdown f
         }
       } catch (err) {
         console.warn(`[geminiService] Primary model (${primaryModel}) failed:`, err);
-        const fallbacks = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash'].filter(m => m !== primaryModel);
+        const fallbacks = [
+          'gemini-3.8-flash',
+          'gemini-3.7-flash',
+          'gemini-3.6-flash',
+          'gemini-3.5-flash',
+          'gemini-3.5-flash-lite',
+          'gemini-3.1-flash-lite'
+        ].filter(m => m !== primaryModel);
         for (const fbModel of fallbacks) {
           try {
             const fbData = await this.queryModel(prompt, fbModel);
