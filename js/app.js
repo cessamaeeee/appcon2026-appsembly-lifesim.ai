@@ -1,16 +1,9 @@
 // =========================================================================
-// LIFESIM.AI - THE MULTIVERSE ENGINE (PH EDITION)
-// CORE APPLICATION LOGIC: SOUND ENGINE, MODELS, SIMULATION & GEMINI AI
+// LIFESIM.AI - PHILIPPINE MULTIVERSE ENGINE (V2.4_PH)
+// CORE CONTROLLER: AUTH (GOOGLE VS GUEST), SOUND SYNTHESIS, TELEMETRY & AI
 // =========================================================================
-import { auth, db } from "../lib/firebase.ts";
-import { signInWithPopup, GoogleAuthProvider, createUserWithEmailAndPassword,
-  signInWithEmailAndPassword, signOut, signInAnonymously } from "firebase/auth";
-import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
-import { calculateFallbackSimulation, buildDynamicCalculatedSimulation, sanitizeHeroState, SIMULATION_YEARS } from "./simulationEngine.js";
-import { ARCHETYPES, getArchetypes } from "./archetypeConfig.js";
-import { runSimulationPipeline, SIMULATION_TIMEOUT_MS } from "./simulationPipeline.js";
 
-// --- 1. ZERO-DEPENDENCY 8-BIT SOUND SYNTHESIZER (Web Audio API) ---
+// --- 1. ZERO-DEPENDENCY 8-BIT RETRO SOUND SYNTHESIZER (Web Audio API) ---
 class RetroSoundEngine {
   constructor() {
     this.ctx = null;
@@ -30,14 +23,20 @@ class RetroSoundEngine {
   toggle() {
     this.enabled = !this.enabled;
     const icon = document.getElementById('soundIcon');
-    const text = document.getElementById('soundText');
+    const footerStatus = document.getElementById('footerSfxStatus');
     if (this.enabled) {
-      icon.className = "fa-solid fa-volume-high text-rpg-emerald";
-      text.innerText = "SFX: ON";
+      if (icon) icon.className = "fa-solid fa-volume-high text-rpg-emerald";
+      if (footerStatus) {
+        footerStatus.className = "text-rpg-emerald font-bold";
+        footerStatus.innerText = "SFX: ON";
+      }
       this.playPowerup();
     } else {
-      icon.className = "fa-solid fa-volume-xmark text-slate-500";
-      text.innerText = "SFX: OFF";
+      if (icon) icon.className = "fa-solid fa-volume-xmark text-slate-500";
+      if (footerStatus) {
+        footerStatus.className = "text-slate-500 font-bold";
+        footerStatus.innerText = "SFX: OFF";
+      }
     }
   }
 
@@ -51,7 +50,7 @@ class RetroSoundEngine {
       osc.type = type;
       osc.frequency.setValueAtTime(freq, this.ctx.currentTime + delay);
       
-      gain.gain.setValueAtTime(0.08, this.ctx.currentTime + delay);
+      gain.gain.setValueAtTime(0.06, this.ctx.currentTime + delay);
       gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + delay + duration);
       
       osc.connect(gain);
@@ -63,28 +62,28 @@ class RetroSoundEngine {
   }
 
   playBlip() {
-    this.playTone(440, 'square', 0.05);
+    this.playTone(440, 'square', 0.04);
   }
 
   playSelect() {
     this.playTone(330, 'square', 0.04);
-    this.playTone(550, 'square', 0.06, 0.05);
+    this.playTone(550, 'square', 0.06, 0.04);
   }
 
   playPowerup() {
-    this.playTone(261.63, 'square', 0.06, 0.00);
-    this.playTone(329.63, 'square', 0.06, 0.06);
-    this.playTone(392.00, 'square', 0.06, 0.12);
-    this.playTone(523.25, 'square', 0.14, 0.18);
+    this.playTone(261.63, 'square', 0.05, 0.00);
+    this.playTone(329.63, 'square', 0.05, 0.05);
+    this.playTone(392.00, 'square', 0.05, 0.10);
+    this.playTone(523.25, 'square', 0.12, 0.15);
   }
 
   playLevelUp() {
-    this.playTone(330, 'square', 0.06, 0.00);
-    this.playTone(392, 'square', 0.06, 0.06);
-    this.playTone(659, 'square', 0.08, 0.12);
-    this.playTone(523, 'square', 0.08, 0.18);
-    this.playTone(587, 'square', 0.08, 0.24);
-    this.playTone(784, 'square', 0.25, 0.30);
+    this.playTone(330, 'square', 0.05, 0.00);
+    this.playTone(392, 'square', 0.05, 0.05);
+    this.playTone(659, 'square', 0.07, 0.10);
+    this.playTone(523, 'square', 0.07, 0.15);
+    this.playTone(587, 'square', 0.07, 0.20);
+    this.playTone(784, 'square', 0.20, 0.25);
   }
 
   playDoorHum() {
@@ -104,7 +103,20 @@ const unlockAudio = () => {
 document.addEventListener('click', unlockAudio);
 document.addEventListener('keydown', unlockAudio);
 
-// --- 2. HERO STATE & CLASS ARCHETYPES ---
+// --- 2. USER AUTHENTICATION STATE (GOOGLE VS GUEST) ---
+let currentUser = {
+  isLoggedIn: false, // true = Google Verified, false = Guest Hero
+  authProvider: 'guest', // 'google' | 'guest'
+  displayName: 'Guest Hero',
+  email: null,
+  avatar: 'https://api.dicebear.com/7.x/bottts/svg?seed=LifeSimGuest',
+  role: 'GUEST_EXPLORER',
+  cloudSync: false,
+  maxVaultSlots: 2, // Guest limited to 2; Logged-in has Infinity
+  verifiedSealNumber: null
+};
+
+// --- 3. HERO STATE & CLASS ARCHETYPES ---
 const CLASS_ARCHETYPES = {
   bpo: {
     id: 'bpo',
@@ -112,36 +124,40 @@ const CLASS_ARCHETYPES = {
     archetypeTitle: 'Corporate Tank',
     baseIncome: 45000,
     baseSavings: 120000,
-    wealth: 75,
-    stress: 85,
-    freedom: 35,
-    workSetup: 'On-Site',
+    age: 26,
+    location: 'Metro Manila (NCR)',
+    workSetup: 'Hybrid',
     commuteHours: 3.5,
-    guild: 'BPO',
+    guild: 'Tech',
+    debtType: 'CreditCard',
+    debtPayment: 4500,
     hmoShield: 'Comprehensive',
     familySafetyNet: 'SandwichGen',
     familyRemittance: 10000,
-    aiLeverage: 'Traditional',
-    socialCapital: 'LoneWolf',
-    learningVelocity: 'Steady',
+    dependents: 2,
+    aiLeverage: 'AiAugmented',
+    socialCapital: 'CommunityPeer',
+    learningVelocity: 'HyperAdaptive',
     desireVector: 'DollarClients',
     riskStance: 'Paladin'
   },
   freelancer: {
     id: 'freelancer',
-    className: 'Hustling Freelancer',
+    className: 'The Hustling Freelancer',
     archetypeTitle: 'Agile Mage',
     baseIncome: 65000,
     baseSavings: 180000,
-    wealth: 80,
-    stress: 55,
-    freedom: 85,
+    age: 28,
+    location: 'Metro Manila (NCR)',
     workSetup: 'Remote',
     commuteHours: 0,
     guild: 'Freelance',
+    debtType: 'None',
+    debtPayment: 0,
     hmoShield: 'Solo',
     familySafetyNet: 'SelfSufficient',
     familyRemittance: 5000,
+    dependents: 1,
     aiLeverage: 'AiAugmented',
     socialCapital: 'CommunityPeer',
     learningVelocity: 'HyperAdaptive',
@@ -154,15 +170,17 @@ const CLASS_ARCHETYPES = {
     archetypeTitle: 'Novice Explorer',
     baseIncome: 24000,
     baseSavings: 30000,
-    wealth: 30,
-    stress: 40,
-    freedom: 70,
+    age: 22,
+    location: 'Metro Manila (NCR)',
     workSetup: 'On-Site',
-    commuteHours: 3,
+    commuteHours: 3.0,
     guild: 'Tech',
+    debtType: 'None',
+    debtPayment: 0,
     hmoShield: 'Solo',
     familySafetyNet: 'SelfSufficient',
     familyRemittance: 3000,
+    dependents: 0,
     aiLeverage: 'AiAugmented',
     socialCapital: 'CommunityPeer',
     learningVelocity: 'HyperAdaptive',
@@ -171,590 +189,118 @@ const CLASS_ARCHETYPES = {
   },
   custom: {
     id: 'custom',
-    className: 'Custom Hero Rogue',
-    archetypeTitle: 'Wildcard Rogue',
+    className: 'Custom Bespoke Hero',
+    archetypeTitle: '100% Bespoke Hero',
     baseIncome: 50000,
-    baseSavings: 100000,
-    wealth: 60,
-    stress: 60,
-    freedom: 60,
-    workSetup: 'Hybrid',
-    commuteHours: 1.5,
-    guild: 'Corporate',
+    baseSavings: 150000,
+    age: 26,
+    location: 'Metro Manila (NCR)',
+    workSetup: 'Remote',
+    commuteHours: 0,
+    guild: 'Tech',
+    debtType: 'None',
+    debtPayment: 0,
     hmoShield: 'Solo',
-    familySafetyNet: 'SandwichGen',
-    familyRemittance: 8000,
-    aiLeverage: 'AiAugmented',
-    socialCapital: 'CommunityPeer',
-    learningVelocity: 'Steady',
+    familySafetyNet: 'SelfSufficient',
+    familyRemittance: 0,
+    dependents: 0,
+    aiLeverage: 'Architect10x',
+    socialCapital: 'GlobalNetwork',
+    learningVelocity: 'HyperAdaptive',
     desireVector: 'OwnBusiness',
-    riskStance: 'Paladin'
+    riskStance: 'Berserker'
   }
 };
 
-let hero = {
-  id: 'bpo',
-  className: 'The BPO Night Owl',
-  archetypeTitle: 'Corporate Tank',
-  age: 25,
-  location: 'Metro Manila',
-  income: 45000,
-  savings: 120000,
-  partySize: 1,
-  workSetup: 'On-Site',
-  commuteHours: 3.5,
-  guild: 'BPO',
-  debtType: 'None',
-  debtPayment: 0,
-  hmoShield: 'Comprehensive',
-  familySafetyNet: 'SandwichGen',
-  familyRemittance: 10000,
-  aiLeverage: 'AiAugmented',
-  socialCapital: 'CommunityPeer',
-  learningVelocity: 'HyperAdaptive',
-  desireVector: 'DollarClients',
-  riskStance: 'Paladin'
-};
+let hero = { ...CLASS_ARCHETYPES.bpo };
 
-// --- 3. MULTIVERSE SCENARIO BLUEPRINTS & FORMULAS (2026-2030) ---
-const SCENARIOS = {
-  tech: {
-    id: 'tech',
-    name: 'Shift to IT & Cybersecurity',
-    shortName: 'IT & Cyber Portal',
-    desc: 'Invest in certs, transition to foreign contract retainers, leverage BIR 8% flat tax.',
-    color: '#06b6d4',
-    years: {
-      2026: {
-        phase: 'Phase 1: The Transition Dip & Night Lab Grind',
-        narrative: 'You study CompTIA/AWS labs after work hours. Income stays stable at baseline while emergency fund cushions certification fees.',
-        baseMultiplier: 1.05,
-        savingsRate: 0.20,
-        stress: 72,
-        freeHours: 14,
-        wealthScore: 50,
-        mindScore: 55,
-        freedom: 40,
-        curveball: {
-          category: '🚨 Hardware & Infrastructure Hazard',
-          title: 'MacBook GPU Glitch + Metro Monsoon Warning',
-          desc: 'Workstation graphics chip fries during exam prep. ₱45,000 replacement absorbed by savings.',
-          mitigation: 'Keep at least 3 months living expenses in Maya / Seabank (4.5% p.a.).'
-        }
-      },
-      2027: {
-        phase: 'Phase 2: First Foreign USD Retainer ($1.5k/mo)',
-        narrative: 'You land an overseas security analyst contract. Register BIR 8% flat tax rate to optimize take-home pay.',
-        baseMultiplier: 1.85,
-        savingsRate: 0.35,
-        stress: 60,
-        freeHours: 24,
-        wealthScore: 68,
-        mindScore: 68,
-        freedom: 65,
-        curveball: {
-          category: '🏛️ Philippine Bureaucracy & BIR Code',
-          title: 'BIR 2303 & DTI Registration Audit',
-          desc: 'Bookkeeper advises moving to Form 1701A (8% Gross Income Tax) saving ₱60k/yr.',
-          mitigation: 'Maintain official receipts and pay quarterly taxes on time via eFPS.'
-        }
-      },
-      2028: {
-        phase: 'Phase 3: Senior Cloud Consultant ($2.8k/mo)',
-        narrative: 'Contract renews at $2,800/mo. Pag-IBIG MP2 account compounding rapidly.',
-        baseMultiplier: 2.85,
-        savingsRate: 0.45,
-        stress: 45,
-        freeHours: 30,
-        wealthScore: 82,
-        mindScore: 78,
-        freedom: 80,
-        curveball: {
-          category: '🏥 Sandwich Generation Family Hazard',
-          title: 'Elderly Parent Hospital Shield Test',
-          desc: 'Parent requires minor surgery. Standalone HMO and emergency fund cover the ₱180k medical bill.',
-          mitigation: 'Secure private HMO (Maxicare/Pacific Cross ₱500k MBL) for senior dependents.'
-        }
-      },
-      2029: {
-        phase: 'Phase 4: Sovereign Fractional SecOps Lead ($4k/mo)',
-        narrative: 'Managing multiple async clients. Zero commute fatigue; full autonomy.',
-        baseMultiplier: 4.10,
-        savingsRate: 0.50,
-        stress: 35,
-        freeHours: 35,
-        wealthScore: 92,
-        mindScore: 86,
-        freedom: 90,
-        curveball: {
-          category: '📈 Macro Forex & USD Surge',
-          title: 'USD/PHP Exchange Rate Hits ₱58.50',
-          desc: 'Dollar retainers gain instant 8% purchasing power surge in local currency.',
-          mitigation: 'Auto-allocate dollar windfall into high-dividend Pag-IBIG MP2.'
-        }
-      },
-      2030: {
-        phase: 'Phase 5: Sovereign Financial Independence in PH',
-        narrative: 'MP2 dividends yield ₱250k+/year tax-free. Portfolio and career freedom achieved.',
-        baseMultiplier: 4.80,
-        savingsRate: 0.55,
-        stress: 25,
-        freeHours: 40,
-        wealthScore: 98,
-        mindScore: 95,
-        freedom: 98,
-        curveball: {
-          category: '🏆 Realm Transcendence',
-          title: 'The Sovereign Master Milestone',
-          desc: 'Net worth crosses ₱6.5M. Passive cashflow covers 100% of living expenses and family support.',
-          mitigation: 'Mentor junior Filipino tech creators and preserve capital.'
-        }
-      }
-    },
-    quests: {
-      treasury: [
-        { id: 'q_t1', text: 'Build 3-Month Emergency Fund in Maya/Seabank (₱120,000+)' },
-        { id: 'q_t2', text: 'Open Pag-IBIG MP2 Account with automated ₱10,000/mo deposit' }
-      ],
-      skills: [
-        { id: 'q_s1', text: 'Pass CompTIA Security+ or AWS Solutions Architect' },
-        { id: 'q_s2', text: 'Deploy AI-accelerated code audit workflow (Cut project delivery time by 50%)' }
-      ],
-      bureaucracy: [
-        { id: 'q_b1', text: 'Register BIR Form 1701A (8% Flat Gross Income Tax)' },
-        { id: 'q_b2', text: 'Maintain SSS voluntary contributions at Maximum WISP Plus cap' }
-      ],
-      mana: [
-        { id: 'q_m1', text: 'Procure standalone HMO for senior parents to shield family treasury' },
-        { id: 'q_m2', text: 'Build ergonomic work sanctuary (Mesh chair & dual monitor arms)' }
-      ]
-    }
-  },
-  nomad: {
-    id: 'nomad',
-    name: 'Move to Province on Full Remote WFH',
-    shortName: 'Nomad Portal',
-    desc: 'Relocate to La Union / Siargao / Tagaytay, cut rent by 45%, eliminate EDSA commute.',
-    color: '#10b981',
-    years: {
-      2026: {
-        phase: 'Phase 1: The Coastal Sanctuary Relocation',
-        narrative: 'Securing Starlink + Solar power generator in La Union. Manila commute drops to 0 hours.',
-        baseMultiplier: 1.10,
-        savingsRate: 0.35,
-        stress: 45,
-        freeHours: 28,
-        wealthScore: 55,
-        mindScore: 80,
-        freedom: 75,
-        curveball: {
-          category: '⚡ Island Infrastructure & Grid Outage',
-          title: 'Typhoon Power Grid Interruption',
-          desc: 'Local brownout hits for 3 days. 1000Wh Solar station + Starlink keeps client meetings online.',
-          mitigation: 'Equip LiFePO4 battery station and backup 5G SIM router.'
-        }
-      },
-      2027: {
-        phase: 'Phase 2: Local Cost Arbitrage & Health Compounding',
-        narrative: 'Monthly food and rent slashed to ₱22,000. Daily beach run/surfing restores mental peace.',
-        baseMultiplier: 1.40,
-        savingsRate: 0.45,
-        stress: 35,
-        freeHours: 32,
-        wealthScore: 68,
-        mindScore: 90,
-        freedom: 85,
-        curveball: {
-          category: '🏠 Coastal Lease Renewal',
-          title: 'Beach Rental Price Increase (Tourism Surge)',
-          desc: 'Landlord requests 15% lease hike. You negotiate a 3-year fixed contract.',
-          mitigation: 'Lock in multi-year long-term provincial lease agreements.'
-        }
-      },
-      2028: {
-        phase: 'Phase 3: Async Remote Agency Retainers',
-        narrative: 'Managing 2 international clients asynchronously with zero time zone friction.',
-        baseMultiplier: 1.95,
-        savingsRate: 0.50,
-        stress: 30,
-        freeHours: 35,
-        wealthScore: 80,
-        mindScore: 94,
-        freedom: 90,
-        curveball: {
-          category: '🛵 Provincial Mobility Hazard',
-          title: 'Motorcycle Breakdown on Mountain Pass',
-          desc: 'Emergency repair costs ₱6,000. Resolved same afternoon.',
-          mitigation: 'Maintain local transport maintenance fund.'
-        }
-      },
-      2029: {
-        phase: 'Phase 4: Co-Living / Micro-Sanctuary Land Acquisition',
-        narrative: 'You purchase a titled provincial lot for future solar homestay retreat.',
-        baseMultiplier: 2.45,
-        savingsRate: 0.50,
-        stress: 25,
-        freeHours: 38,
-        wealthScore: 88,
-        mindScore: 96,
-        freedom: 95,
-        curveball: {
-          category: '📜 Provincial Land Title Verification',
-          title: 'Registry of Deeds & LGU Clearance',
-          desc: 'Clean title verified through local geodetic engineer.',
-          mitigation: 'Always hire licensed geodetic surveyors before rural land deposits.'
-        }
-      },
-      2030: {
-        phase: 'Phase 5: Sovereign Coastal Flow State',
-        narrative: 'Ultimate harmony: high remote earnings, zero commute, pristine health and peace.',
-        baseMultiplier: 2.90,
-        savingsRate: 0.55,
-        stress: 20,
-        freeHours: 42,
-        wealthScore: 94,
-        mindScore: 99,
-        freedom: 99,
-        curveball: {
-          category: '🌴 Paradise Mastery',
-          title: 'Zenith of Health & Autonomy',
-          desc: 'Physical health markers at peak levels. Freedom score maxed.',
-          mitigation: 'Host remote mastermind retreats for Filipino creators.'
-        }
-      }
-    },
-    quests: {
-      treasury: [
-        { id: 'q_n1', text: 'Secure ₱75,000 relocation & Starlink CapEx fund' },
-        { id: 'q_n2', text: 'Automate 50% savings rate directly into Pag-IBIG MP2' }
-      ],
-      skills: [
-        { id: 'q_ns1', text: 'Master asynchronous AI communication tools (Loom, Notion, GPT Agents)' },
-        { id: 'q_ns2', text: 'Acquire dual international remote client retainers via high-trust network' }
-      ],
-      bureaucracy: [
-        { id: 'q_nb1', text: 'Transfer Barangay Residency & voter registration to province' },
-        { id: 'q_nb2', text: 'Register regional DTI business trade name for local permits' }
-      ],
-      mana: [
-        { id: 'q_nm1', text: 'Acquire 1000Wh Solar Generator backup for brownout resistance' },
-        { id: 'q_nm2', text: 'Establish daily 60-min outdoor surf / cycling routine' }
-      ]
-    }
-  },
-  custom: {
-    id: 'custom',
-    name: 'Custom Life Move / Venture',
-    shortName: 'Custom Portal',
-    desc: 'Bespoke trajectory synthesized by the AI Multiverse Engine.',
-    color: '#a855f7',
-    years: {
-      2026: {
-        phase: 'Phase 1: Blueprint Formulation & Validation',
-        narrative: 'Testing prototype with initial runway capital. Iterating offer based on local Philippine market demand.',
-        baseMultiplier: 0.95,
-        savingsRate: 0.15,
-        stress: 75,
-        freeHours: 15,
-        wealthScore: 48,
-        mindScore: 60,
-        freedom: 50,
-        curveball: {
-          category: '💼 Initial Product-Market Fit Test',
-          title: 'First Customer Churn Alert',
-          desc: 'Iterating product pricing to align with local Filipino willingness-to-pay.',
-          mitigation: 'Keep personal burn rate below ₱30k/mo during incubation.'
-        }
-      },
-      2027: {
-        phase: 'Phase 2: Break-Even & Operational Momentum',
-        narrative: 'Revenue surpasses operational overhead. Word-of-mouth creates repeat referrals.',
-        baseMultiplier: 1.60,
-        savingsRate: 0.30,
-        stress: 60,
-        freeHours: 20,
-        wealthScore: 65,
-        mindScore: 72,
-        freedom: 65,
-        curveball: {
-          category: '🏛️ SEC & Mayor’s Business Permit Renewal',
-          title: 'LGU Clearance Compliance',
-          desc: 'Annual business renewal fees paid with zero penalties.',
-          mitigation: 'File quarterly tax returns through certified CPA.'
-        }
-      },
-      2028: {
-        phase: 'Phase 3: Scaling & Team Delegation',
-        narrative: 'Hiring key operators. Founder transitions from working in the business to on the business.',
-        baseMultiplier: 2.50,
-        savingsRate: 0.40,
-        stress: 50,
-        freeHours: 28,
-        wealthScore: 78,
-        mindScore: 80,
-        freedom: 78,
-        curveball: {
-          category: '👥 Key Employee Retention',
-          title: 'Key Staff Incentive Program',
-          desc: 'Implemented performance profit-sharing bonus for core team.',
-          mitigation: 'Build transparent incentive roadmaps for team members.'
-        }
-      },
-      2029: {
-        phase: 'Phase 4: Market Expansion & Brand Dominance',
-        narrative: 'Venture expands to multiple branches or B2B enterprise tier clients.',
-        baseMultiplier: 3.50,
-        savingsRate: 0.45,
-        stress: 40,
-        freeHours: 32,
-        wealthScore: 89,
-        mindScore: 88,
-        freedom: 85,
-        curveball: {
-          category: '🏪 Supply Chain Friction',
-          title: 'Supplier Logistics Delays',
-          desc: 'Diversified supply chain with backup regional suppliers.',
-          mitigation: 'Never rely on a single supplier or sole traffic channel.'
-        }
-      },
-      2030: {
-        phase: 'Phase 5: Sustainable Sovereign Enterprise',
-        narrative: 'Self-sustaining operation generating predictable dividends.',
-        baseMultiplier: 4.40,
-        savingsRate: 0.50,
-        stress: 30,
-        freeHours: 38,
-        wealthScore: 96,
-        mindScore: 92,
-        freedom: 94,
-        curveball: {
-          category: '🏆 Founder Sovereignty',
-          title: 'The Sovereign Venture Milestone',
-          desc: 'Equity value crosses ₱10M with strong cash dividends.',
-          mitigation: 'Reinvest profits into diversified liquid assets & MP2.'
-        }
-      }
-    },
-    quests: {
-      treasury: [
-        { id: 'q_c1', text: 'Secure 6-Month business runway capital buffer' },
-        { id: 'q_c2', text: 'Open dedicated business bank account (Separate personal funds)' }
-      ],
-      skills: [
-        { id: 'q_cs1', text: 'Master AI-driven social marketing funnels & direct sales automation' },
-        { id: 'q_cs2', text: 'Document end-to-end Standard Operating Procedures (SOPs) in Notion' }
-      ],
-      bureaucracy: [
-        { id: 'q_cb1', text: 'Secure DTI/SEC registration & Mayor’s Business Permit' },
-        { id: 'q_cb2', text: 'Register BIR Books of Accounts & Authority to Print (ATP) receipts' }
-      ],
-      mana: [
-        { id: 'q_cm1', text: 'Enforce mandatory 1 full phone-free rest day per week' },
-        { id: 'q_cm2', text: 'Join local founder mastermind group for tactical peer accountability' }
-      ]
-    }
-  }
-};
-
+// --- 4. MULTIVERSE SIMULATION STATE ---
 let activeScenarioKey = 'tech';
-let currentYear = 2026;
+let currentYear = 2028;
+let activeForkIndex = 0;
 let completedQuests = new Set();
 let financialChart = null;
-let radarChart = null;
-
-// =========================================================================
-// 4. 100% DYNAMIC AI-DRIVEN MULTIVERSE SIMULATION ENGINE (GEMINI FLASH)
-// =========================================================================
 let activeAiSimulationData = null;
 let whatIfVault = [];
 let activeWhatIfId = null;
+let activeDestinyPortals = [];
 
-// Master Live Gemini 1.5/2.0/3.6 Flash Multiverse Simulation Function
-async function generateFullAiSimulation(heroState, scenarioKey, customPrompt = '') {
-  const apiKey = localStorage.getItem('lifesim_gemini_api_key');
-  const activeModel = localStorage.getItem('lifesim_gemini_model') || 'gemini-3.6-flash';
-
-  const pathwayNames = {
-    tech: 'Shift to High-Income IT, Cloud & Cybersecurity Consulting',
-    nomad: 'Relocate to Coastal Province on 100% Asynchronous WFH',
-    corp: 'Launch an Independent High-Leverage Philippine Business Venture',
-    custom: customPrompt || 'Custom Strategic Multiverse Pathway'
-  };
-
-  const chosenPathway = pathwayNames[scenarioKey] || customPrompt || 'Bespoke Multiverse Pathway';
-
-  if (apiKey) {
-    const prompt = `You are LifeSim.ai's Multiverse Simulation Engine for the Philippines.
-Perform an in-depth, realistic 5-year simulation (2026 to 2030) strictly tailored to this specific Filipino hero:
-- Class / Background: ${heroState.className} (Age: ${heroState.age}, Zone: ${heroState.location})
-- Current Work Setup: ${heroState.workSetup} with ${heroState.commuteHours} hours daily transit
-- Base Salary: ₱${heroState.income.toLocaleString()}/month
-- Liquid Savings: ₱${heroState.savings.toLocaleString()}
-- Starting Line / Family Safety Net: ${heroState.familySafetyNet}
-- Monthly Family Support / Remittance (Sandwich Gen): ₱${heroState.familyRemittance.toLocaleString()}/month
-- Debt Payment: ₱${heroState.debtPayment.toLocaleString()}/month (${heroState.debtType})
-- Health Shield (HMO): ${heroState.hmoShield}
-- The Equalizers: AI Leverage = ${heroState.aiLeverage}, Social Capital = ${heroState.socialCapital}, Learning Velocity = ${heroState.learningVelocity}
-- Core Desire: ${heroState.desireVector} (Combat Stance: ${heroState.riskStance})
-- Chosen Portal Pathway: "${chosenPathway}"
-
-Calculate realistic year-by-year numbers in Philippine Pesos (PHP) for 2026, 2027, 2028, 2029, 2030:
-- monthlyIncome (PHP per month)
-- cumulativeSavings (PHP total accumulated savings)
-- monthlyExpenses (PHP living expenses per month, including living costs + family remittance + debt)
-- stress (Integer 0 to 100)
-- freeHours (Integer weekly discretionary free hours)
-- wealthScore (Integer 0 to 100)
-- mindScore (Integer 0 to 100)
-- freedomScore (Integer 0 to 100)
-- healthScore (Integer 0 to 100)
-- phase (Short phase title)
-- narrative (2-3 sentences explaining exactly what happened in this year for this specific hero)
-- curveball (category, title, desc, mitigation)
-- quests (treasury, skills, bureaucracy, mana - each with 2 actionable quests)
-- overallStrategicThesis (2 paragraphs synthesizing their starting line vs equalizers)
-
-Return ONLY a strictly valid JSON object matching this exact schema without any markdown formatting or code fences:
-{
-  "scenarioName": "${chosenPathway}",
-  "overallStrategicThesis": "Detailed 2-paragraph strategic thesis tailored to this hero...",
-  "years": {
-    "2026": {
-      "phase": "Phase 1 Title",
-      "monthlyIncome": 50000,
-      "cumulativeSavings": 150000,
-      "monthlyExpenses": 32000,
-      "stress": 65,
-      "freeHours": 20,
-      "wealthScore": 55,
-      "mindScore": 60,
-      "freedomScore": 50,
-      "healthScore": 70,
-      "narrative": "Detailed narrative for 2026...",
-      "curveball": {
-        "category": "🚨 Category",
-        "title": "Specific Event",
-        "desc": "Description...",
-        "mitigation": "Tactical mitigation..."
-      }
+// Preset Fork Timelines (Alpha, Beta, Gamma)
+const FORK_TIMELINES = [
+  {
+    id: 'fork_alpha',
+    title: '⚡ Shift to High-Income IT & Consulting',
+    badge: 'RECOMMENDED LEAP',
+    desc: 'BIR 8% Flat Tax / Net +₱145k/mo',
+    scenarioKey: 'tech',
+    years: {
+      '2026': { monthlyIncome: 65000, cumulativeSavings: 320000, stress: 55, freeHours: 12, wealthScore: 70, mindScore: 68, freedomScore: 65, sovereigntyScore: 68, healthScore: 80 },
+      '2027': { monthlyIncome: 95000, cumulativeSavings: 840000, stress: 45, freeHours: 16, wealthScore: 80, mindScore: 75, freedomScore: 78, sovereigntyScore: 75, healthScore: 80 },
+      '2028': { monthlyIncome: 145000, cumulativeSavings: 1840000, stress: 28, freeHours: 21.5, wealthScore: 92, mindScore: 84, freedomScore: 88, sovereigntyScore: 82, healthScore: 80 },
+      '2029': { monthlyIncome: 195000, cumulativeSavings: 2750000, stress: 24, freeHours: 24, wealthScore: 96, mindScore: 88, freedomScore: 92, sovereigntyScore: 88, healthScore: 82 },
+      '2030': { monthlyIncome: 245000, cumulativeSavings: 3850000, stress: 20, freeHours: 28, wealthScore: 98, mindScore: 92, freedomScore: 95, sovereigntyScore: 94, healthScore: 85 }
     },
-    "2027": {
-      "phase": "Phase 2 Title",
-      "monthlyIncome": 75000,
-      "cumulativeSavings": 320000,
-      "monthlyExpenses": 38000,
-      "stress": 55,
-      "freeHours": 24,
-      "wealthScore": 65,
-      "mindScore": 68,
-      "freedomScore": 60,
-      "healthScore": 75,
-      "narrative": "Detailed narrative for 2027...",
-      "curveball": { "category": "...", "title": "...", "desc": "...", "mitigation": "..." }
-    },
-    "2028": {
-      "phase": "Phase 3 Title",
-      "monthlyIncome": 120000,
-      "cumulativeSavings": 650000,
-      "monthlyExpenses": 45000,
-      "stress": 45,
-      "freeHours": 28,
-      "wealthScore": 78,
-      "mindScore": 75,
-      "freedomScore": 75,
-      "healthScore": 80,
-      "narrative": "Detailed narrative for 2028...",
-      "curveball": { "category": "...", "title": "...", "desc": "...", "mitigation": "..." }
-    },
-    "2029": {
-      "phase": "Phase 4 Title",
-      "monthlyIncome": 180000,
-      "cumulativeSavings": 1400000,
-      "monthlyExpenses": 55000,
-      "stress": 35,
-      "freeHours": 35,
-      "wealthScore": 88,
-      "mindScore": 85,
-      "freedomScore": 88,
-      "healthScore": 85,
-      "narrative": "Detailed narrative for 2029...",
-      "curveball": { "category": "...", "title": "...", "desc": "...", "mitigation": "..." }
-    },
-    "2030": {
-      "phase": "Phase 5 Title",
-      "monthlyIncome": 250000,
-      "cumulativeSavings": 2800000,
-      "monthlyExpenses": 650000,
-      "stress": 25,
-      "freeHours": 40,
-      "wealthScore": 96,
-      "mindScore": 92,
-      "freedomScore": 95,
-      "healthScore": 90,
-      "narrative": "Detailed narrative for 2030...",
-      "curveball": { "category": "...", "title": "...", "desc": "...", "mitigation": "..." }
+    curveball: {
+      year: 2027,
+      tag: '[2027 CURVEBALL EVENT DETECTED]',
+      title: 'Typhoon Power Grid Outage (Meralco 72h Blackout) + BIR Form 1701A Audit Trigger',
+      desc: 'Simulation predicts Category 4 Typhoon disruption across Luzon during Q3 2027, followed by an algorithmic Bureau of Internal Revenue (BIR) gross receipts verification for self-employed digital tech workers.',
+      mitigation1: '<strong>Hardware Resilience:</strong> Starlink Mini portable dish + 1066Wh LiFePO4 battery station funded from Q1 2026 setup stipend. Zero downtime with US clients.',
+      mitigation2: '<strong>Fiscal Immunity:</strong> Automated BIR 8% flat-rate quarterly ledger booked with SSS WISP Plus voluntary contribution shield. Full tax compliance audit log cleared.'
     }
   },
-  "quests": {
-    "treasury": [
-      { "id": "q_t1", "text": "Actionable financial task 1" },
-      { "id": "q_t2", "text": "Actionable financial task 2" }
-    ],
-    "skills": [
-      { "id": "q_s1", "text": "Skill task 1" },
-      { "id": "q_s2", "text": "Skill task 2" }
-    ],
-    "bureaucracy": [
-      { "id": "q_b1", "text": "Legal/tax task 1" },
-      { "id": "q_b2", "text": "Legal/tax task 2" }
-    ],
-    "mana": [
-      { "id": "q_m1", "text": "Health/rest task 1" },
-      { "id": "q_m2", "text": "Health/rest task 2" }
-    ]
-  }
-}`;
-
-    const queryAi = async (modelName) => {
-      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: prompt }] }]
-        })
-      });
-      if (!res.ok) throw new Error(`Model ${modelName} returned HTTP ${res.status}`);
-      const data = await res.json();
-      let rawText = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
-      rawText = rawText.replace(/```json/gi, '').replace(/```/gi, '').trim();
-      return JSON.parse(rawText);
-    };
-
-    try {
-      const aiData = await queryAi(activeModel);
-      if (aiData && aiData.years && aiData.years['2026']) {
-        return aiData;
-      }
-    } catch (err) {
-      console.warn(`Gemini AI simulation failed with ${activeModel}, trying fallback model:`, err);
-      try {
-        const fbData = await queryAi('gemini-2.0-flash');
-        if (fbData && fbData.years && fbData.years['2026']) return fbData;
-      } catch (fbErr) {
-        console.warn('Fallback model failed, generating dynamic calculated simulation.');
-      }
+  {
+    id: 'fork_beta',
+    title: '🌴 Relocate to Province on Remote WFH',
+    badge: 'MAX PEACE & CLARITY',
+    desc: 'Starlink + US Retainer / -40% Living Cost',
+    scenarioKey: 'nomad',
+    years: {
+      '2026': { monthlyIncome: 55000, cumulativeSavings: 280000, stress: 40, freeHours: 20, wealthScore: 65, mindScore: 85, freedomScore: 82, sovereigntyScore: 70, healthScore: 82 },
+      '2027': { monthlyIncome: 80000, cumulativeSavings: 720000, stress: 32, freeHours: 24, wealthScore: 75, mindScore: 90, freedomScore: 88, sovereigntyScore: 78, healthScore: 85 },
+      '2028': { monthlyIncome: 120000, cumulativeSavings: 1540000, stress: 22, freeHours: 28, wealthScore: 85, mindScore: 95, freedomScore: 94, sovereigntyScore: 84, healthScore: 88 },
+      '2029': { monthlyIncome: 160000, cumulativeSavings: 2450000, stress: 18, freeHours: 32, wealthScore: 90, mindScore: 96, freedomScore: 96, sovereigntyScore: 88, healthScore: 90 },
+      '2030': { monthlyIncome: 200000, cumulativeSavings: 3400000, stress: 15, freeHours: 35, wealthScore: 94, mindScore: 98, freedomScore: 98, sovereigntyScore: 90, healthScore: 92 }
+    },
+    curveball: {
+      year: 2027,
+      tag: '[2027 SUBSEA CABLE CUT EVENT]',
+      title: 'Island Fiber Cut + Localized Rental Price Inflation in General Luna',
+      desc: 'Severe weather damages provincial undersea fiber backbone while beach town rent spikes 25%.',
+      mitigation1: '<strong>Dual Satellite WAN:</strong> Secondary Starlink residential dish roaming failover active with local mesh backup.',
+      mitigation2: '<strong>Long-Term Lease Ward:</strong> 3-year fixed rental deed locked with local landowner avoiding spot inflation.'
+    }
+  },
+  {
+    id: 'fork_gamma',
+    title: '✨ Custom Desired Pathway',
+    badge: 'CUSTOM DESIRE',
+    desc: 'Hero Bespoke Desire Pathway',
+    scenarioKey: 'corp',
+    years: {
+      '2026': { monthlyIncome: 45000, cumulativeSavings: 140000, stress: 82, freeHours: 8, wealthScore: 45, mindScore: 35, freedomScore: 25, sovereigntyScore: 30, healthScore: 60 },
+      '2027': { monthlyIncome: 48000, cumulativeSavings: 190000, stress: 86, freeHours: 7, wealthScore: 48, mindScore: 30, freedomScore: 22, sovereigntyScore: 32, healthScore: 55 },
+      '2028': { monthlyIncome: 52000, cumulativeSavings: 260000, stress: 90, freeHours: 6, wealthScore: 50, mindScore: 25, freedomScore: 20, sovereigntyScore: 35, healthScore: 50 },
+      '2029': { monthlyIncome: 56000, cumulativeSavings: 340000, stress: 92, freeHours: 5, wealthScore: 52, mindScore: 20, freedomScore: 18, sovereigntyScore: 38, healthScore: 45 },
+      '2030': { monthlyIncome: 62000, cumulativeSavings: 450000, stress: 95, freeHours: 4, wealthScore: 55, mindScore: 18, freedomScore: 15, sovereigntyScore: 40, healthScore: 40 }
+    },
+    curveball: {
+      year: 2028,
+      tag: '[2028 CRITICAL BURNOUT EPISODE]',
+      title: 'Severe Hypertension Triggered by Daily EDSA Transit + Sandwich Remittance Surge',
+      desc: 'Cumulative sleep deficit from night shifts causes hospitalization right as familial medical dependents increase.',
+      mitigation1: '<strong>Emergency Loan Draw:</strong> SSS Salary Loan depleted to cover out-of-pocket medical gap.',
+      mitigation2: '<strong>Status Quo Warning:</strong> High economic and biometric fragility. Transition recommended immediately.'
     }
   }
+];
 
-  // Pure dynamic algorithmic calculation (Zero static mock answers)
-  return buildDynamicCalculatedSimulation(heroState, chosenPathway, scenarioKey);
-}
-
-// --- 5. TIMELINE SCRUBBER & SIMULATOR ENGINE ---
+// --- 5. TIMELINE ENGINE & CHART.JS CONTROLLER ---
 const timelineEngine = {
   setYear(year) {
     currentYear = parseInt(year);
-    document.getElementById('timelineSlider').value = currentYear;
+    const slider = document.getElementById('timelineSlider');
+    if (slider) slider.value = currentYear;
     soundEngine.playBlip();
     this.updateDashboardMetrics();
   },
@@ -765,104 +311,243 @@ const timelineEngine = {
     this.updateDashboardMetrics();
   },
 
+  runSimulationPulse() {
+    soundEngine.playLevelUp();
+    this.updateDashboardMetrics();
+    this.initCharts();
+  },
+
   updateDashboardMetrics() {
-    if (!activeAiSimulationData || !activeAiSimulationData.years) {
-      activeAiSimulationData = buildDynamicCalculatedSimulation(hero, 'Multiverse Pathway', activeScenarioKey);
+    const fork = FORK_TIMELINES[activeForkIndex] || FORK_TIMELINES[0];
+    if (!fork || !fork.years) return;
+
+    // 1. Sync All 3 Fork Tabs in the DOM
+    [0, 1, 2].forEach(i => {
+      const f = FORK_TIMELINES[i];
+      if (!f) return;
+      const tEl = document.getElementById(`forkTitle-${i}`);
+      const dEl = document.getElementById(`forkDesc-${i}`);
+      const bEl = document.getElementById(`forkBadgeStatus-${i}`);
+      const sEl = document.getElementById(`forkStability-${i}`);
+      const tab = document.getElementById(`forkTab-${i}`);
+      if (tEl) {
+        tEl.innerText = f.title;
+        tEl.title = f.title;
+      }
+      if (dEl) {
+        dEl.innerText = f.desc;
+        dEl.title = f.desc;
+      }
+      if (bEl) bEl.innerText = i === activeForkIndex ? 'ACTIVE REALITY' : (f.badge || (i === 1 ? 'FORK B' : 'CUSTOM'));
+      if (sEl) sEl.innerText = i === activeForkIndex ? '98.4% STABILITY' : (i === 1 ? '78.5% STABILITY' : 'CUSTOM');
+
+      if (tab) {
+        if (i === activeForkIndex) {
+          tab.className = 'bg-dungeon-900 border-2 border-rpg-gold p-3 shadow-brutal-gold cursor-pointer transition-all';
+        } else {
+          tab.className = 'bg-dungeon-900 border border-slate-800 hover:border-rpg-mana p-3 shadow-brutal cursor-pointer transition-all';
+        }
+      }
+    });
+
+    const data = fork.years[currentYear.toString()] || fork.years[currentYear] || fork.years['2028'] || fork.years[2028];
+    if (!data) return;
+
+    const statusQuoBaseline = Math.round((hero.income || 45000) * Math.pow(1.05, currentYear - 2026));
+    const isSabbatical = data.monthlyIncome === 0;
+    const growthPercent = !isSabbatical ? (((data.monthlyIncome - statusQuoBaseline) / statusQuoBaseline) * 100).toFixed(0) : 0;
+    const monthlyBurn = data.monthlyExpenses || Math.max(25000, (hero.income || 45000) * 0.65);
+    const runwayMonths = data.cumulativeSavings > 0 ? (data.cumulativeSavings / monthlyBurn).toFixed(1) : '0.0';
+
+    // Epoch Header
+    const epochEl = document.getElementById('currentEpochDisplay');
+    if (epochEl) epochEl.innerText = `YEAR ${currentYear}`;
+
+    // Metric 1: Cashflow
+    const incEl = document.getElementById('statMonthlyIncome');
+    const grwEl = document.getElementById('dashGrowthPct');
+    const sqBaseEl = document.getElementById('dashStatusQuoBaseline');
+    const incSub = document.getElementById('statMonthlyIncomeSub');
+
+    if (incEl) {
+      if (isSabbatical) {
+        incEl.innerHTML = `₱0 <span class="text-xs text-amber-400 font-normal">/ mo (REST & SABBATICAL)</span>`;
+      } else {
+        incEl.innerHTML = `₱${data.monthlyIncome.toLocaleString()} <span class="text-xs text-slate-400 font-normal">/ mo</span>`;
+      }
     }
 
-    const data = activeAiSimulationData.years[currentYear] || activeAiSimulationData.years['2026'];
-    const statusQuoMonthly = Math.round((hero.income || 45000) * Math.pow(1.05, currentYear - 2026));
-    const growthPercent = (((data.monthlyIncome - statusQuoMonthly) / statusQuoMonthly) * 100).toFixed(1);
-    const monthlyExp = data.monthlyExpenses || Math.max(25000, data.monthlyIncome * 0.55);
-    const runwayMonths = (data.cumulativeSavings / monthlyExp).toFixed(1);
-
-    document.getElementById('dashScenarioBadge').innerText = `Scenario: ${activeAiSimulationData.scenarioName}`;
-    document.getElementById('currentYearDisplay').innerText = currentYear;
-    document.getElementById('yearPhaseBadge').innerText = data.phase;
-    document.getElementById('yearNarrativeTitle').innerText = `YEAR ${currentYear - 2025}: ${data.phase.toUpperCase()}`;
-    document.getElementById('yearNarrativeText').innerText = data.narrative;
-    document.getElementById('radarYearLabel').innerText = currentYear;
-
-    document.getElementById('statMonthlyIncome').innerText = `₱${data.monthlyIncome.toLocaleString()}`;
-    document.getElementById('statIncomeGrowth').innerHTML = growthPercent >= 0 
-      ? `<i class="fa-solid fa-arrow-trend-up"></i> +${growthPercent}% vs Status Quo`
-      : `<i class="fa-solid fa-arrow-trend-down text-rose-400"></i> ${growthPercent}% vs Status Quo`;
-    document.getElementById('statTotalSavings').innerText = `₱${data.cumulativeSavings.toLocaleString()}`;
-    document.getElementById('statSavingsRunway').innerText = `~${runwayMonths} Mos Living Runway in PH`;
-    document.getElementById('statStressIndex').innerText = `${data.stress} / 100`;
-    document.getElementById('statStressNarrative').innerText = data.stress > 65 
-      ? 'High (Sandwich Generation & Grind Phase)' 
-      : (data.stress > 40 ? 'Moderate (Balanced Flow)' : 'Zenith (Sovereign Autonomy)');
-
-    document.getElementById('statFreeHours').innerText = `${data.freeHours} hrs/wk`;
-    document.getElementById('statFreeTimeDelta').innerText = hero.commuteHours > 0 
-      ? `Reclaimed: +${Math.round(hero.commuteHours * 5)}h Commute`
-      : `Weekly Discretionary Freedom`;
-
-    // Curveball update
-    if (data.curveball) {
-      document.getElementById('curveballYearDisplay').innerText = currentYear;
-      document.getElementById('curveballCategory').innerText = data.curveball.category;
-      document.getElementById('curveballTitle').innerText = data.curveball.title;
-      document.getElementById('curveballDescription').innerText = data.curveball.desc;
-      document.getElementById('curveballMitigation').innerText = data.curveball.mitigation;
+    if (grwEl) {
+      if (isSabbatical) {
+        grwEl.innerText = `CAREER BREAK (0 SALARY)`;
+        grwEl.className = "text-amber-400 font-bold";
+      } else {
+        grwEl.innerText = growthPercent >= 0 ? `+${growthPercent}% VS STATUS QUO` : `${growthPercent}% VS STATUS QUO`;
+        grwEl.className = growthPercent >= 0 ? "text-rpg-emerald font-bold" : "text-rose-400 font-bold";
+      }
     }
 
-    // Radar chart update
-    if (radarChart) {
-      radarChart.data.datasets[0].data = [
-        data.wealthScore || 60,
-        data.mindScore || 65,
-        data.freedomScore || 60,
-        data.healthScore || 75,
-        100 - (data.stress || 50)
-      ];
-      radarChart.update();
+    if (sqBaseEl) sqBaseEl.innerText = `Status Quo: ₱${statusQuoBaseline.toLocaleString()} / mo`;
+    if (incSub) {
+      if (isSabbatical) {
+        incSub.innerHTML = `<i class="fa-solid fa-bed text-amber-400"></i> <span>Burnout Recovery / 0 EDSA Drag</span>`;
+      } else {
+        incSub.innerHTML = `<i class="fa-solid fa-shield-halved text-rpg-gold"></i> <span>BIR 8% Flat Tax Shield Active</span>`;
+      }
+    }
+
+    // Metric 2: Treasury
+    const savEl = document.getElementById('statTotalSavings');
+    if (savEl) {
+      if (data.cumulativeSavings < 0) {
+        savEl.innerHTML = `<span class="text-rose-400">-₱${Math.abs(data.cumulativeSavings).toLocaleString()}</span> <span class="text-xs text-rose-400 font-normal">DEFICIT</span>`;
+      } else {
+        savEl.innerHTML = `₱${data.cumulativeSavings.toLocaleString()} <span class="text-xs text-slate-400 font-normal">PHP</span>`;
+      }
+    }
+    const rnwEl = document.getElementById('dashRunwayBadge');
+    if (rnwEl) {
+      rnwEl.innerText = `${runwayMonths} MO RUNWAY`;
+      rnwEl.className = data.cumulativeSavings < 0 ? 'text-rose-400 font-bold' : (parseFloat(runwayMonths) < 6 ? 'text-amber-400 font-bold' : 'text-rpg-gold font-bold');
+    }
+
+    // Metric 3: Strain
+    const strEl = document.getElementById('statStressIndex');
+    if (strEl) {
+      const zoneText = data.stress < 35 ? '[SAFE]' : (data.stress < 70 ? '[MODERATE]' : '[CRITICAL]');
+      const zoneColor = data.stress < 35 ? 'text-emerald-400' : (data.stress < 70 ? 'text-amber-400' : 'text-rose-400');
+      strEl.innerHTML = `<span class="${zoneColor}">${data.stress} / 100</span> <span class="text-xs font-normal">${zoneText}</span>`;
+    }
+
+    // Metric 4: Free Time
+    const freeEl = document.getElementById('statFreeHours');
+    if (freeEl) freeEl.innerHTML = `+${data.freeHours} <span class="text-xs text-slate-400 font-normal">hrs / wk</span>`;
+
+    // 5-Axis Score Bars
+    const scores = [
+      { id: '1', val: data.wealthScore || 80 },
+      { id: '2', val: data.mindScore || 80 },
+      { id: '3', val: data.freedomScore || 80 },
+      { id: '4', val: data.sovereigntyScore || 80 },
+      { id: '5', val: data.healthScore || 80 }
+    ];
+
+    let totalScore = 0;
+    scores.forEach(s => {
+      totalScore += s.val;
+      const vEl = document.getElementById(`scoreVal-${s.id}`);
+      const bEl = document.getElementById(`scoreBar-${s.id}`);
+      if (vEl) vEl.innerText = `${s.val} / 100`;
+      if (bEl) bEl.style.width = `${s.val}%`;
+    });
+
+    const avgScore = Math.round(totalScore / scores.length);
+    const scoreBadge = document.getElementById('dashScoreBadge');
+    if (scoreBadge) scoreBadge.innerText = `SCORE: ${avgScore}/100`;
+
+    // Diagnostic Assessment Text
+    const diagText = document.getElementById('dashDiagnosticText');
+    const diagTier = document.getElementById('dashAssessmentTier');
+    if (diagText) {
+      diagText.innerText = data.narrative || fork.overallStrategicThesis || "Strategic pathway calculated to optimize your income velocity, lifestyle autonomy, and financial safety net in the Philippines.";
+    }
+    if (diagTier) {
+      diagTier.innerText = avgScore >= 88 ? 'TIER: S+' : (avgScore >= 76 ? 'TIER: A+' : 'TIER: B+');
+    }
+
+    // Chart Active Legend
+    const legendEl = document.getElementById('dashChartLegendActive');
+    if (legendEl) legendEl.innerText = fork.title.replace(/^[⚡🌴🏢✨]\s*(Portal \d+:\s*|Timeline [Alpha|Beta|Gamma]+:\s*)?/i, '');
+
+    // Crossover Callout
+    const crossText = document.getElementById('dashCrossoverText');
+    const crossDiff = document.getElementById('dashCrossoverDiff');
+    const target2030 = fork.years['2030']?.cumulativeSavings || data.cumulativeSavings;
+    const sq2030 = Math.round((hero.income || 45000) * 12 * Math.pow(1.05, 4) * 0.15 + (hero.savings || 120000));
+    const diff2030 = target2030 - sq2030;
+
+    if (crossDiff && crossText) {
+      if (diff2030 >= 0) {
+        crossDiff.innerText = `[+₱${(diff2030 / 1000000).toFixed(2)}M ADVANTAGE]`;
+        crossDiff.className = 'text-rpg-gold font-bold';
+        crossText.innerText = `Trajectory: ${fork.title.replace(/^[⚡🌴🏢✨]\s*/, '')} outpaces Status Quo by Year 2028.`;
+      } else {
+        crossDiff.innerText = `[₱${(Math.abs(diff2030) / 1000000).toFixed(2)}M REST BUFFER]`;
+        crossDiff.className = 'text-amber-400 font-bold';
+        crossText.innerText = `Runway: Frugal living draws upon cash reserves with zero daily EDSA transit drag.`;
+      }
+    }
+
+    // Execution Summary
+    const execSummary = document.getElementById('dashExecutionSummary');
+    if (execSummary) {
+      execSummary.innerText = `${fork.title.replace(/^[⚡🌴🏢✨]\s*/, '')} is mathematically synchronized for your profile.`;
+    }
+
+    // Philippine Hazard Engine Curveball update
+    const currentCurveball = (data.curveball) ? data.curveball : (fork.curveball || null);
+    if (currentCurveball) {
+      const cbTag = document.getElementById('curveballTag');
+      const cbTitle = document.getElementById('curveballTitle');
+      const cbDesc = document.getElementById('curveballDesc');
+      const mit1 = document.getElementById('mitigationPoint1');
+      const mit2 = document.getElementById('mitigationPoint2');
+
+      if (cbTag) cbTag.innerText = currentCurveball.tag || `[${currentYear} CURVEBALL EVENT]`;
+      if (cbTitle) cbTitle.innerText = currentCurveball.title;
+      if (cbDesc) cbDesc.innerText = currentCurveball.desc;
+      if (mit1) mit1.innerHTML = currentCurveball.mitigation1 ? (currentCurveball.mitigation1.startsWith('<strong>') ? currentCurveball.mitigation1 : `<strong>Hardware/Action:</strong> ${currentCurveball.mitigation1}`) : '<strong>Mitigation:</strong> Proactive buffer allocated.';
+      if (mit2) mit2.innerHTML = currentCurveball.mitigation2 ? (currentCurveball.mitigation2.startsWith('<strong>') ? currentCurveball.mitigation2 : `<strong>Fiscal Ward:</strong> ${currentCurveball.mitigation2}`) : '<strong>Compliance:</strong> Tax & emergency ledger locked.';
     }
   },
 
   initCharts() {
-    if (!activeAiSimulationData || !activeAiSimulationData.years) {
-      activeAiSimulationData = buildDynamicCalculatedSimulation(hero, 'Multiverse Pathway', activeScenarioKey);
-    }
+    const isDark = document.documentElement.classList.contains('dark');
+    const fork = FORK_TIMELINES[activeForkIndex] || FORK_TIMELINES[0];
+    const years = ['2026', '2027', '2028', '2029', '2030'];
+    const statusQuoData = years.map((y, idx) => Math.round((hero.income || 45000) * 12 * Math.pow(1.05, idx) * 0.15 + (hero.savings || 120000)));
+    const projectedData = years.map(y => fork.years[y].cumulativeSavings);
 
-    const years = [2026, 2027, 2028, 2029, 2030];
-    const statusQuoData = years.map(y => Math.round((hero.income || 45000) * Math.pow(1.05, y - 2026)));
-    const projectedData = years.map(y => activeAiSimulationData.years[y].monthlyIncome);
-
-    // 1. Line Chart
     const lineCanvas = document.getElementById('financialChart');
     if (lineCanvas) {
-      const ctxLine = lineCanvas.getContext('2d');
+      const ctx = lineCanvas.getContext('2d');
       if (financialChart) financialChart.destroy();
 
-      financialChart = new Chart(ctxLine, {
+      const goldColor = isDark ? '#fbbf24' : '#d97706';
+      const goldBg = isDark ? 'rgba(251, 191, 36, 0.12)' : 'rgba(217, 119, 6, 0.10)';
+      const gridColor = isDark ? 'rgba(255, 255, 255, 0.04)' : 'rgba(15, 23, 42, 0.06)';
+      const tickColor = isDark ? '#94a3b8' : '#475569';
+      const tooltipBg = isDark ? '#0a0f1d' : '#ffffff';
+      const tooltipTextColor = isDark ? '#f8fafc' : '#0f172a';
+
+      financialChart = new Chart(ctx, {
         type: 'line',
         data: {
           labels: ['2026', '2027', '2028', '2029', '2030'],
           datasets: [
             {
-              label: 'Status Quo (No Change)',
+              label: 'Status Quo',
               data: statusQuoData,
-              borderColor: '#64748b',
-              backgroundColor: 'rgba(100, 116, 139, 0.1)',
-              borderWidth: 3,
+              borderColor: isDark ? '#64748b' : '#94a3b8',
+              backgroundColor: 'transparent',
+              borderWidth: 2,
               borderDash: [5, 5],
-              pointBackgroundColor: '#64748b',
-              pointRadius: 4,
-              tension: 0.3
+              pointBackgroundColor: isDark ? '#64748b' : '#94a3b8',
+              pointRadius: 3,
+              tension: 0.2
             },
             {
-              label: 'AI Multiverse Projected (PHP)',
+              label: fork.title.replace('⚡ ', '').replace('🌴 ', '').replace('🏢 ', ''),
               data: projectedData,
-              borderColor: '#8b5cf6',
-              backgroundColor: 'rgba(139, 92, 246, 0.15)',
-              borderWidth: 4,
+              borderColor: goldColor,
+              backgroundColor: goldBg,
+              borderWidth: 2.5,
               fill: true,
-              pointBackgroundColor: '#fbbf24',
-              pointBorderColor: '#020617',
+              pointBackgroundColor: goldColor,
+              pointBorderColor: isDark ? '#020617' : '#ffffff',
               pointBorderWidth: 2,
-              pointRadius: 6,
+              pointRadius: 5,
+              pointHoverRadius: 7,
               tension: 0.3
             }
           ]
@@ -873,91 +558,31 @@ const timelineEngine = {
           plugins: {
             legend: { display: false },
             tooltip: {
-              backgroundColor: '#0a0f1d',
-              titleFont: { family: '"Press Start 2P"', size: 10 },
+              backgroundColor: tooltipBg,
+              titleColor: tooltipTextColor,
+              bodyColor: tooltipTextColor,
+              titleFont: { family: '"JetBrains Mono"', size: 11, weight: 'bold' },
               bodyFont: { family: '"JetBrains Mono"', size: 12 },
-              borderColor: '#1e293b',
-              borderWidth: 2,
+              borderColor: goldColor,
+              borderWidth: 1,
+              padding: 8,
               callbacks: {
-                label: function(context) {
-                  return `${context.dataset.label}: ₱${context.raw.toLocaleString()}/mo`;
-                }
+                label: (ctx) => ` ₱${ctx.raw.toLocaleString()} PHP Net Wealth`
               }
             }
           },
           scales: {
             x: {
-              grid: { color: 'rgba(255, 255, 255, 0.05)' },
-              ticks: { color: '#94a3b8', font: { family: '"JetBrains Mono"', size: 11 } }
+              grid: { color: gridColor },
+              ticks: { color: tickColor, font: { family: '"JetBrains Mono"', size: 10 } }
             },
             y: {
-              grid: { color: 'rgba(255, 255, 255, 0.05)' },
+              grid: { color: gridColor },
               ticks: {
-                color: '#94a3b8',
-                font: { family: '"JetBrains Mono"', size: 11 },
-                callback: (val) => '₱' + (val / 1000) + 'k'
+                color: tickColor,
+                font: { family: '"JetBrains Mono"', size: 10 },
+                callback: (val) => val >= 1000000 ? `₱${(val / 1000000).toFixed(1)}M` : `₱${(val / 1000)}k`
               }
-            }
-          }
-        }
-      });
-    }
-
-    // 2. Radar Chart
-    const radarCanvas = document.getElementById('lifeBalanceRadarChart');
-    if (radarCanvas) {
-      const ctxRadar = radarCanvas.getContext('2d');
-      if (radarChart) radarChart.destroy();
-
-      const curData = activeAiSimulationData.years[currentYear] || activeAiSimulationData.years['2026'];
-
-      radarChart = new Chart(ctxRadar, {
-        type: 'radar',
-        data: {
-          labels: ['Wealth & Gold', 'Mental Wellbeing', 'Free Time & Stamina', 'Career Sovereignty', 'Health Shield'],
-          datasets: [
-            {
-              label: 'Life Balance Index',
-              data: [
-                curData.wealthScore || 60,
-                curData.mindScore || 65,
-                curData.freedomScore || 60,
-                curData.healthScore || 75,
-                100 - (curData.stress || 50)
-              ],
-              backgroundColor: 'rgba(139, 92, 246, 0.25)',
-              borderColor: '#a855f7',
-              borderWidth: 3,
-              pointBackgroundColor: '#fbbf24',
-              pointBorderColor: '#020617',
-              pointRadius: 5
-            }
-          ]
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          plugins: {
-            legend: { display: false },
-            tooltip: {
-              backgroundColor: '#0a0f1d',
-              titleFont: { family: '"Press Start 2P"', size: 9 },
-              bodyFont: { family: '"JetBrains Mono"', size: 11 },
-              borderColor: '#1e293b',
-              borderWidth: 2
-            }
-          },
-          scales: {
-            r: {
-              angleLines: { color: 'rgba(255, 255, 255, 0.1)' },
-              grid: { color: 'rgba(255, 255, 255, 0.1)' },
-              pointLabels: {
-                color: '#cbd5e1',
-                font: { family: '"JetBrains Mono"', size: 10, weight: 'bold' }
-              },
-              suggestedMin: 0,
-              suggestedMax: 100,
-              ticks: { display: false, stepSize: 20 }
             }
           }
         }
@@ -966,1276 +591,1524 @@ const timelineEngine = {
   }
 };
 
-// --- 7. MAIN APPLICATION CONTROLLER & NAVIGATION ---
+// --- 6. MAIN APPLICATION CONTROLLER ---
 const app = {
-  navTo(screenId) {
+  // Navigation Router
+  navTo(screenId, tabName = null) {
     soundEngine.playSelect();
-    document.querySelectorAll('.screen-view').forEach(s => s.classList.add('hidden'));
+    
+    // Switch Screen View
+    document.querySelectorAll('.screen-view').forEach(s => {
+      s.classList.add('hidden');
+      s.classList.remove('active');
+    });
     const target = document.getElementById(screenId);
     if (target) {
       target.classList.remove('hidden');
+      target.classList.add('active');
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
-    if (screenId === 'screen-class-select') {
-      if (!this.archetypes || this.archetypes.length === 0) {
-        this.loadArchetypes();
-      } else {
-        this.renderArchetypeCards();
-      }
+
+    // Update Top Navigation Tab Active Indicators
+    document.querySelectorAll('.nav-tab-link').forEach(t => t.classList.remove('active'));
+    if (tabName) {
+      const activeNavTab = document.getElementById(`navTab${tabName.replace(/\s+/g, '')}`);
+      if (activeNavTab) activeNavTab.classList.add('active');
+    }
+
+    if (screenId === 'screen-dashboard') {
+      setTimeout(() => {
+        timelineEngine.updateDashboardMetrics();
+        timelineEngine.initCharts();
+      }, 50);
     }
   },
 
-  toggleCRT() {
-    const crt = document.getElementById('crtOverlay');
-    if (crt) crt.classList.toggle('hidden');
+  // --- THEME SYSTEM (LIGHT MODE BY DEFAULT & DARK MODE) ---
+  initTheme() {
+    const savedTheme = localStorage.getItem('lifesim_theme') || 'light';
+    this.setTheme(savedTheme);
   },
 
-  openFirebaseModal() {
-    soundEngine.playBlip();
-    document.getElementById('firebaseConfigModal').classList.remove('hidden');
+  toggleTheme() {
+    soundEngine.playSelect();
+    const isDark = document.documentElement.classList.contains('dark');
+    const newTheme = isDark ? 'light' : 'dark';
+    this.setTheme(newTheme);
   },
 
-  closeFirebaseModal() {
-    soundEngine.playBlip();
-    document.getElementById('firebaseConfigModal').classList.add('hidden');
-  },
+  setTheme(theme) {
+    const html = document.documentElement;
+    const icon = document.getElementById('themeIcon');
+    const label = document.getElementById('themeLabel');
 
-  onModelSelectChange() {
-    const sel = document.getElementById('selectGeminiModel');
-    const customWrapper = document.getElementById('customModelWrapper');
-    if (sel && customWrapper) {
-      if (sel.value === 'custom') {
-        customWrapper.classList.remove('hidden');
-      } else {
-        customWrapper.classList.add('hidden');
-      }
+    if (theme === 'dark') {
+      html.classList.add('dark');
+      html.classList.remove('light');
+      localStorage.setItem('lifesim_theme', 'dark');
+      if (icon) icon.className = "fa-solid fa-sun text-amber-400";
+      if (label) label.innerText = "LIGHT";
+    } else {
+      html.classList.remove('dark');
+      html.classList.add('light');
+      localStorage.setItem('lifesim_theme', 'light');
+      if (icon) icon.className = "fa-solid fa-moon text-indigo-600";
+      if (label) label.innerText = "DARK";
+    }
+
+    if (financialChart) {
+      setTimeout(() => timelineEngine.initCharts(), 50);
     }
   },
 
-  openAdminModal() {
+  // --- AUTHENTICATION & USER EXPERIENCE DIFFERENTIATION ---
+  async initAuth() {
+    try {
+      const savedAuth = localStorage.getItem('lifesim_auth_user');
+      if (savedAuth) {
+        currentUser = JSON.parse(savedAuth);
+      }
+    } catch (e) {
+      console.warn('Could not read auth state from localStorage:', e);
+    }
+    this.updateAuthUI();
+
+    if (currentUser.isLoggedIn) {
+      await this.loadUserVault();
+      await this.loadQuestLogs();
+    }
+
+    // The first thing the user sees is the Login screen (Sanctum)
+    if (!currentUser.isLoggedIn) {
+      this.navTo('screen-title', 'Sanctum');
+    }
+  },
+
+  async loadUserVault() {
+    if (!currentUser.isLoggedIn || !currentUser.uid) return;
+
+    const cloudVault = await firebaseService.loadUserVault(currentUser.uid);
+    whatIfVault = Array.isArray(cloudVault) ? cloudVault : [];
+    localStorage.setItem('lifesim_whatif_vault', JSON.stringify(whatIfVault));
+    this.renderVaultModal();
+  },
+
+  async loadQuestLogs() {
+    if (!currentUser.isLoggedIn || !currentUser.uid) return;
+
+    const savedQuestIds = await firebaseService.loadQuestLogs(currentUser.uid);
+    completedQuests = new Set(Array.isArray(savedQuestIds) ? savedQuestIds : []);
+    this.renderQuestItems();
+  },
+
+  openGoogleAuthModal() {
     soundEngine.playPowerup();
-    const modal = document.getElementById('adminGeminiModal');
-    if (modal) {
-      const savedKey = localStorage.getItem('lifesim_gemini_api_key') || '';
-      const savedModel = localStorage.getItem('lifesim_gemini_model') || 'gemini-3.6-flash';
-      
-      document.getElementById('inputGeminiApiKey').value = savedKey;
-      
-      const sel = document.getElementById('selectGeminiModel');
-      const customInput = document.getElementById('inputCustomGeminiModel');
-      const customWrapper = document.getElementById('customModelWrapper');
-
-      if (['gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-1.5-pro', 'gemini-2.5-flash'].includes(savedModel)) {
-        sel.value = savedModel;
-        customWrapper.classList.add('hidden');
-      } else {
-        sel.value = 'custom';
-        customInput.value = savedModel;
-        customWrapper.classList.remove('hidden');
-      }
-
-      modal.classList.remove('hidden');
-    }
+    const modal = document.getElementById('googleAuthModal');
+    if (modal) modal.classList.remove('hidden');
   },
 
-  closeAdminModal() {
+  closeGoogleAuthModal() {
     soundEngine.playBlip();
-    const modal = document.getElementById('adminGeminiModal');
+    const modal = document.getElementById('googleAuthModal');
     if (modal) modal.classList.add('hidden');
   },
 
-  saveAdminApiKey() {
-    soundEngine.playLevelUp();
-    const key = document.getElementById('inputGeminiApiKey').value.trim();
-    const sel = document.getElementById('selectGeminiModel');
-    const customInput = document.getElementById('inputCustomGeminiModel');
+  // --- FIREBASE CONFIGURATION MODAL HANDLERS ---
+  openFirebaseConfigModal() {
+    soundEngine.playPowerup();
+    const modal = document.getElementById('firebaseConfigModal');
+    if (!modal) return;
 
-    let chosenModel = sel.value === 'custom' 
-      ? (customInput.value.trim() || 'gemini-3.6-flash') 
-      : sel.value;
+    const config = firebaseService.getConfig();
+    const keyEl = document.getElementById('fbInputApiKey');
+    const domainEl = document.getElementById('fbInputAuthDomain');
+    const projEl = document.getElementById('fbInputProjectId');
+    const appEl = document.getElementById('fbInputAppId');
 
-    if (key) {
-      localStorage.setItem('lifesim_gemini_api_key', key);
-      localStorage.setItem('lifesim_gemini_model', chosenModel);
-      alert(`✨ Gemini AI Activated!\nModel: ${chosenModel}\nLive multiverse synthesis is now enabled.`);
-    } else {
-      localStorage.removeItem('lifesim_gemini_api_key');
-      localStorage.removeItem('lifesim_gemini_model');
-      alert('ℹ️ Gemini API Key cleared. Using built-in localized simulation engine.');
-    }
-    this.closeAdminModal();
+    if (keyEl) keyEl.value = config.apiKey || '';
+    if (domainEl) domainEl.value = config.authDomain || '';
+    if (projEl) projEl.value = config.projectId || '';
+    if (appEl) appEl.value = config.appId || '';
+
+    modal.classList.remove('hidden');
   },
 
-  // Auth UI State
-  authMode: 'login',
-
-  setAuthMode(mode) {
-    this.authMode = mode;
+  closeFirebaseConfigModal() {
     soundEngine.playBlip();
-    this.hideAuthError();
+    const modal = document.getElementById('firebaseConfigModal');
+    if (modal) modal.classList.add('hidden');
+  },
 
-    const tabLogin = document.getElementById('tabAuthLogin');
-    const tabReg = document.getElementById('tabAuthRegister');
-    const nameField = document.getElementById('authDisplayNameField');
-    const btnText = document.getElementById('btnEmailText');
-    const btnIcon = document.getElementById('btnEmailIcon');
+  onFirebaseSnippetPaste(snippet) {
+    if (!snippet || typeof snippet !== 'string') return;
+    try {
+      // Regex extraction for common Firebase config format
+      const apiKeyMatch = snippet.match(/apiKey\s*:\s*["']([^"']+)["']/);
+      const authDomainMatch = snippet.match(/authDomain\s*:\s*["']([^"']+)["']/);
+      const projectIdMatch = snippet.match(/projectId\s*:\s*["']([^"']+)["']/);
+      const appIdMatch = snippet.match(/appId\s*:\s*["']([^"']+)["']/);
 
-    if (mode === 'register') {
-      if (tabLogin) {
-        tabLogin.className = "py-1.5 text-center font-pixel text-[9px] text-slate-400 hover:text-slate-200 transition-all";
+      if (apiKeyMatch && document.getElementById('fbInputApiKey')) {
+        document.getElementById('fbInputApiKey').value = apiKeyMatch[1];
       }
-      if (tabReg) {
-        tabReg.className = "py-1.5 text-center font-pixel text-[9px] bg-slate-800 text-rpg-gold border border-slate-700 transition-all";
+      if (authDomainMatch && document.getElementById('fbInputAuthDomain')) {
+        document.getElementById('fbInputAuthDomain').value = authDomainMatch[1];
       }
-      if (nameField) nameField.classList.remove('hidden');
-      if (btnText) btnText.innerText = "FORGE NEW RECRUIT ACCOUNT";
-      if (btnIcon) btnIcon.className = "fa-solid fa-user-shield";
+      if (projectIdMatch && document.getElementById('fbInputProjectId')) {
+        document.getElementById('fbInputProjectId').value = projectIdMatch[1];
+      }
+      if (appIdMatch && document.getElementById('fbInputAppId')) {
+        document.getElementById('fbInputAppId').value = appIdMatch[1];
+      }
+    } catch (e) {
+      console.warn('Could not auto-parse snippet:', e);
+    }
+  },
+
+  saveFirebaseConfig() {
+    soundEngine.playLevelUp();
+    const apiKey = document.getElementById('fbInputApiKey')?.value.trim() || '';
+    const authDomain = document.getElementById('fbInputAuthDomain')?.value.trim() || '';
+    const projectId = document.getElementById('fbInputProjectId')?.value.trim() || '';
+    const appId = document.getElementById('fbInputAppId')?.value.trim() || '';
+
+    if (!apiKey || !authDomain || !projectId) {
+      alert('Please fill in at least API Key, Auth Domain, and Project ID.');
+      return;
+    }
+
+    const configObj = {
+      apiKey,
+      authDomain,
+      projectId,
+      storageBucket: `${projectId}.appspot.com`,
+      messagingSenderId: "",
+      appId
+    };
+
+    const success = firebaseService.saveConfig(configObj);
+    this.closeFirebaseConfigModal();
+    this.updateAuthUI();
+
+    if (success) {
+      alert(`Firebase initialized successfully for project "${projectId}"! You can now sign in with Google.`);
     } else {
-      if (tabLogin) {
-        tabLogin.className = "py-1.5 text-center font-pixel text-[9px] bg-slate-800 text-rpg-gold border border-slate-700 transition-all";
-      }
-      if (tabReg) {
-        tabReg.className = "py-1.5 text-center font-pixel text-[9px] text-slate-400 hover:text-slate-200 transition-all";
-      }
-      if (nameField) nameField.classList.add('hidden');
-      if (btnText) btnText.innerText = "INITIALIZE LOGIN";
-      if (btnIcon) btnIcon.className = "fa-solid fa-arrow-right-to-bracket";
+      alert(`Firebase config saved. Ready to sign in.`);
     }
   },
 
-  showAuthError(err) {
-    const errorBox = document.getElementById('authErrorBox');
-    const errorMsg = document.getElementById('authErrorMessage');
-    if (!errorBox || !errorMsg) return;
+  // Firebase Google Popup Authentication
+  async signInWithFirebaseGoogle() {
+    soundEngine.playLevelUp();
+    try {
+      if (firebaseService.isInitialized || firebaseService.init()) {
+        const heroUser = await firebaseService.signInWithGoogle();
+        currentUser = heroUser;
+        await this.loadUserVault();
+        await this.loadQuestLogs();
+        localStorage.setItem('lifesim_auth_user', JSON.stringify(currentUser));
+        this.closeGoogleAuthModal();
+        this.updateAuthUI();
 
-    let message = typeof err === 'string' ? err : (err?.message || 'Authentication sequence failed.');
-    const code = err?.code || '';
+        if (typeof confetti === 'function') {
+          confetti({ particleCount: 60, spread: 70, origin: { y: 0.5 } });
+        }
 
-    // Map common Firebase auth error codes to friendly RPG descriptions
-    if (code === 'auth/invalid-credential' || code === 'auth/user-not-found' || code === 'auth/wrong-password' || code === 'auth/invalid-login-credentials') {
-      message = 'Invalid email cipher or passphrase. Please verify your credentials.';
-    } else if (code === 'auth/email-already-in-use') {
-      message = 'This email cipher is already registered. Switch to Log In to enter the nexus.';
-    } else if (code === 'auth/weak-password') {
-      message = 'Passphrase is too weak. Must contain at least 6 characters.';
-    } else if (code === 'auth/invalid-email') {
-      message = 'Invalid email cipher format. Please enter a valid email address.';
-    } else if (code === 'auth/network-request-failed') {
-      message = 'Neural link failure: Network request timed out or connection lost.';
-    } else if (code === 'auth/popup-closed-by-user') {
-      message = 'Google sign-in popup was closed before authentication finalized.';
-    } else if (code === 'auth/too-many-requests') {
-      message = 'Access temporarily throttled due to unusual activity. Please try again shortly.';
+        this.navTo('screen-class-select', 'Archetype');
+        return;
+      } else {
+        // Firebase config not yet provided: prompt user to configure or use 1-click test
+        this.openFirebaseConfigModal();
+        return;
+      }
+    } catch (err) {
+      console.warn('Firebase Google Auth error:', err);
+      if (err.message === 'CONFIG_MISSING' || err.code === 'auth/invalid-api-key') {
+        this.openFirebaseConfigModal();
+        return;
+      }
+      alert(`Google Sign-In notice: ${err.message || 'Popup closed or failed'}. You can also use 1-Click Instant Test Login.`);
+    }
+  },
+
+  async signInWithGoogle(customName = null, customEmail = null) {
+    soundEngine.playLevelUp();
+    const name = customName || document.getElementById('googleInputName')?.value.trim() || 'Juan Dela Cruz';
+    let email = customEmail || document.getElementById('googleInputEmail')?.value.trim() || 'juan.delacruz@gmail.com';
+    
+    // Ensure email is valid
+    if (!email.includes('@')) {
+      email = `${email.toLowerCase().replace(/[^a-z0-9]/g, '')}@gmail.com`;
     }
 
-    errorMsg.innerText = message;
-    errorBox.classList.remove('hidden');
-    soundEngine.playTone(150, 'sawtooth', 0.2);
+    currentUser = {
+      isLoggedIn: true,
+      authProvider: 'google',
+      displayName: name,
+      email: email,
+      uid: `demo_${email.toLowerCase().replace(/[^a-z0-9]/g, '')}`,
+      avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(name)}`,
+      role: 'VERIFIED_HERO',
+      cloudSync: true,
+      maxVaultSlots: Infinity, // Unlimited Cloud Storage
+      verifiedSealNumber: `PH-2026-HERO-${Math.floor(1000 + Math.random() * 9000)}`
+    };
+
+    await firebaseService.saveUser(currentUser);
+    await this.loadUserVault();
+    await this.loadQuestLogs();
+    
+    localStorage.setItem('lifesim_auth_user', JSON.stringify(currentUser));
+    this.closeGoogleAuthModal();
+    this.updateAuthUI();
+
+    if (typeof confetti === 'function') {
+      confetti({ particleCount: 60, spread: 70, origin: { y: 0.5 } });
+    }
+
+    this.navTo('screen-class-select', 'Archetype');
   },
 
-  hideAuthError() {
-    const errorBox = document.getElementById('authErrorBox');
-    if (errorBox) errorBox.classList.add('hidden');
+  async signInAsGuest() {
+    soundEngine.playSelect();
+    const guestUid = localStorage.getItem('lifesim_guest_uid') || `guest_${crypto.randomUUID()}`;
+    localStorage.setItem('lifesim_guest_uid', guestUid);
+    currentUser = {
+      isLoggedIn: false,
+      authProvider: 'guest',
+      displayName: 'Guest Hero',
+      email: `${guestUid}@lifesim.ai`,
+      uid: guestUid,
+      avatar: 'https://api.dicebear.com/7.x/bottts/svg?seed=LifeSimGuest',
+      role: 'GUEST_EXPLORER',
+      cloudSync: false,
+      maxVaultSlots: 2, // Maximum 2 local slots for guests
+      verifiedSealNumber: null
+    };
+
+    completedQuests.clear();
+    await firebaseService.saveUser(currentUser);
+    await this.loadUserVault();
+
+    localStorage.setItem('lifesim_auth_user', JSON.stringify(currentUser));
+    this.updateAuthUI();
+    this.navTo('screen-class-select', 'Archetype');
   },
 
-  setAuthLoading(isLoading, activeBtnId = 'btnEmailSubmit', loadingText = 'TRANSMITTING...') {
-    const btnGoogle = document.getElementById('btnGoogleAuth');
-    const btnGuest = document.getElementById('guestAuthBtn');
-    const btnEmail = document.getElementById('btnEmailSubmit');
-    const btnEmailText = document.getElementById('btnEmailText');
-    const btnGoogleText = document.getElementById('btnGoogleText');
-    const btnGuestText = document.getElementById('btnGuestText');
+  async signOut() {
+    soundEngine.playBlip();
+    if (typeof firebaseService !== 'undefined') {
+      await firebaseService.signOut();
+    }
+    currentUser = {
+      isLoggedIn: false,
+      authProvider: 'guest',
+      displayName: 'Guest Hero',
+      email: null,
+      avatar: 'https://api.dicebear.com/7.x/bottts/svg?seed=LifeSimGuest',
+      role: 'GUEST_EXPLORER',
+      cloudSync: false,
+      maxVaultSlots: 2,
+      verifiedSealNumber: null
+    };
+    localStorage.removeItem('lifesim_auth_user');
+    localStorage.removeItem('lifesim_whatif_vault');
+    whatIfVault = [];
+    completedQuests.clear();
+    this.updateAuthUI();
+    this.navTo('screen-title', 'Sanctum');
+  },
 
-    [btnGoogle, btnGuest, btnEmail].forEach(btn => {
+  updateAuthUI() {
+    // 1. Header Auth Section
+    const headerAuth = document.getElementById('headerAuthContainer');
+    if (headerAuth) {
+      if (currentUser.isLoggedIn) {
+        headerAuth.innerHTML = `
+          <div class="flex items-center gap-2">
+            <div class="flex items-center gap-1.5 px-2 py-1 bg-dungeon-950 border border-emerald-500/80 text-[11px] font-mono text-emerald-300">
+              <img src="${currentUser.avatar}" alt="Avatar" class="w-4 h-4 rounded-full border border-emerald-400">
+              <span class="font-bold truncate max-w-[110px]">${currentUser.displayName}</span>
+              <span class="text-[9px] bg-emerald-950 text-emerald-400 px-1 border border-emerald-500">VERIFIED</span>
+            </div>
+            <button onclick="app.signOut()" class="text-slate-400 hover:text-rose-400 text-xs" title="Sign Out to Guest">
+              <i class="fa-solid fa-arrow-right-from-bracket"></i>
+            </button>
+          </div>
+        `;
+      } else {
+        headerAuth.innerHTML = `
+          <div class="flex items-center gap-2">
+            <span class="hidden lg:inline-block px-1.5 py-0.5 bg-amber-950/40 border border-amber-500/50 text-[10px] text-amber-400 font-mono">
+              GUEST (2 SLOTS)
+            </span>
+            <button onclick="app.openGoogleAuthModal()" class="btn-brutal px-2.5 py-1 bg-white hover:bg-slate-100 text-slate-950 font-bold text-xs font-mono flex items-center gap-1.5 border border-slate-950">
+              <i class="fa-brands fa-google text-slate-900 text-xs"></i>
+              <span>LOG IN</span>
+            </button>
+          </div>
+        `;
+      }
+    }
+
+    // 2. Sanctum Hero Status Box
+    const sanctumStatus = document.getElementById('sanctumUserStatusBox');
+    if (sanctumStatus) {
+      if (currentUser.isLoggedIn) {
+        sanctumStatus.innerHTML = `
+          <div class="bg-white dark:bg-dungeon-950 border-2 border-emerald-500 p-4 shadow-brutal-emerald flex flex-col sm:flex-row items-center justify-between gap-3 text-left">
+            <div class="flex items-center gap-3">
+              <img src="${currentUser.avatar}" alt="Avatar" class="w-11 h-11 rounded-full border-2 border-emerald-400 bg-slate-900">
+              <div>
+                <div class="text-xs font-bold text-slate-900 dark:text-white font-mono flex items-center gap-1.5">
+                  <span>${currentUser.displayName}</span>
+                  <span class="text-[9px] bg-emerald-950 text-emerald-400 px-1.5 py-0.2 border border-emerald-400 font-mono">CLOUD SYNCED</span>
+                </div>
+                <div class="text-[10px] text-slate-500 dark:text-slate-400 font-mono">${currentUser.email} // Official Hero ID: ${currentUser.verifiedSealNumber}</div>
+              </div>
+            </div>
+            <div class="flex items-center gap-2">
+              <button onclick="app.navTo('screen-class-select', 'Archetype')" class="btn-brutal px-4 py-2 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold font-mono text-xs border border-slate-950 shadow-brutal-gold">
+                CONTINUE SIMULATION →
+              </button>
+              <button onclick="app.signOut()" class="px-3 py-2 bg-slate-100 dark:bg-dungeon-900 hover:bg-slate-200 dark:hover:bg-dungeon-800 text-slate-600 dark:text-slate-400 font-mono text-xs border border-slate-300 dark:border-slate-800">
+                LOGOUT
+              </button>
+            </div>
+          </div>
+        `;
+      } else {
+        sanctumStatus.innerHTML = `
+          <div class="bg-white dark:bg-dungeon-950 border-2 border-slate-300 dark:border-slate-800 p-5 shadow-brutal space-y-4 text-center max-w-xl mx-auto">
+            <div class="space-y-1">
+              <div class="text-[10px] text-amber-600 dark:text-rpg-gold font-bold uppercase tracking-wider">HERO REALM AUTHENTICATION GATE</div>
+              <h3 class="text-sm sm:text-base font-bold text-slate-900 dark:text-white font-mono">CHOOSE YOUR SIMULATION ACCESS LEVEL</h3>
+              <p class="text-xs text-slate-600 dark:text-slate-400 font-mono">Sign in with Google / Gmail to activate Live Gemini 2.5 AI Analysis, or enter as Guest for standard calculations.</p>
+            </div>
+
+            <div class="flex flex-col sm:flex-row gap-2.5 justify-center pt-1">
+              <!-- Primary: Firebase Google Auth Popup -->
+              <button type="button" onclick="app.signInWithFirebaseGoogle()" class="btn-brutal px-4 py-2.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold font-mono text-xs flex items-center justify-center gap-2 border border-slate-950 shadow-brutal-gold">
+                <i class="fa-brands fa-google text-sm"></i>
+                <span>SIGN IN WITH GOOGLE (LIVE AI)</span>
+              </button>
+
+              <!-- Quick 1-Click Instant Test -->
+              <button type="button" onclick="app.signInWithGoogle('Juan Dela Cruz', 'juan.delacruz@gmail.com')" class="btn-brutal px-3.5 py-2.5 bg-slate-100 dark:bg-dungeon-900 hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-900 dark:text-white font-bold font-mono text-xs border border-slate-950 flex items-center justify-center gap-1.5 shadow-sm">
+                <i class="fa-solid fa-bolt text-amber-500"></i>
+                <span>1-CLICK GMAIL HERO</span>
+              </button>
+            </div>
+
+            <!-- Firebase Setup Hint -->
+            <div class="flex items-center justify-center gap-2 text-[10px] font-mono text-slate-500 dark:text-slate-400">
+              <i class="fa-solid fa-fire text-amber-500"></i>
+              <span>Using your own Firebase project?</span>
+              <button type="button" onclick="app.openFirebaseConfigModal()" class="text-sky-600 dark:text-rpg-mana hover:underline font-bold">Configure Firebase Keys →</button>
+            </div>
+
+            <!-- Guest Option -->
+            <div class="pt-2 border-t border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-2 text-xs font-mono text-left">
+              <span class="text-slate-500 text-[11px]">Exploring without AI reasoning?</span>
+              <button type="button" onclick="app.signInAsGuest()" class="px-3 py-1 bg-slate-100 dark:bg-dungeon-900 hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-300 dark:border-slate-800 font-bold text-xs">
+                ENTER AS GUEST (STANDARD ENGINE) →
+              </button>
+            </div>
+          </div>
+        `;
+      }
+    }
+
+    // 3. Vault Modal Status Strip
+    this.renderVaultModal();
+  },
+
+  // Class Archetype Selection
+  selectClass(classKey) {
+    soundEngine.playSelect();
+    const template = CLASS_ARCHETYPES[classKey] || CLASS_ARCHETYPES.bpo;
+    hero = { ...template };
+
+    // Reset card borders
+    const classKeys = ['bpo', 'freelancer', 'freshgrad', 'custom'];
+    classKeys.forEach(k => {
+      const card = document.getElementById(`card-class-${k}`);
+      const statusTag = document.getElementById(`statusTag-${k}`);
+      const btn = document.getElementById(`btnClass-${k}`);
+
+      if (card) {
+        card.classList.remove('border-rpg-gold', 'shadow-brutal-gold');
+        card.classList.add('border-slate-800', 'shadow-brutal');
+      }
+      if (statusTag) {
+        statusTag.innerText = '[STANDBY]';
+        statusTag.className = 'text-slate-400 font-bold';
+      }
       if (btn) {
-        btn.disabled = isLoading;
-        if (isLoading) {
-          btn.classList.add('opacity-50', 'pointer-events-none');
+        btn.className = 'w-full py-1.5 bg-transparent hover:bg-sky-950/40 text-rpg-mana font-bold font-mono text-xs uppercase flex items-center justify-center gap-1.5 border border-rpg-mana';
+        btn.innerHTML = '<i class="fa-solid fa-bolt text-xs"></i> <span>SELECT ARCHETYPE</span>';
+      }
+    });
+
+    // Highlight selected card
+    const selectedCard = document.getElementById(`card-class-${classKey}`);
+    const selectedStatus = document.getElementById(`statusTag-${classKey}`);
+    const selectedBtn = document.getElementById(`btnClass-${classKey}`);
+
+    if (selectedCard) {
+      selectedCard.classList.remove('border-slate-800', 'shadow-brutal');
+      selectedCard.classList.add('border-rpg-gold', 'shadow-brutal-gold');
+    }
+    if (selectedStatus) {
+      selectedStatus.innerText = '[ACTIVE]';
+      selectedStatus.className = 'text-rpg-gold font-bold';
+    }
+    if (selectedBtn) {
+      selectedBtn.className = 'w-full py-1.5 bg-rpg-gold text-slate-950 font-bold font-mono text-xs uppercase flex items-center justify-center gap-1.5 border border-slate-950 shadow-sm';
+      selectedBtn.innerHTML = '<i class="fa-solid fa-check text-xs"></i> <span>SELECTED CLASS</span>';
+    }
+
+    // Update Proceed Button Label
+    const proceedLabel = document.getElementById('btnProceedLabel');
+    if (proceedLabel) {
+      const shortTitles = {
+        bpo: 'BPO NIGHT OWL',
+        freelancer: 'HUSTLING FREELANCER',
+        freshgrad: 'FRESH GRAD',
+        custom: 'CUSTOM HERO'
+      };
+      proceedLabel.innerText = `CALIBRATE [${shortTitles[classKey] || 'HERO'}]`;
+    }
+
+    this.populateCalibrationForm();
+  },
+
+  populateCalibrationForm() {
+    const ageEl = document.getElementById('inputAge');
+    const locEl = document.getElementById('inputLocation');
+    const incEl = document.getElementById('inputIncome');
+    const savEl = document.getElementById('inputSavings');
+    const remEl = document.getElementById('inputFamilyRemittance');
+    const chkSand = document.getElementById('chkSandwichGen');
+    const debtEl = document.getElementById('inputDebtPayment');
+    const depEl = document.getElementById('dependentsVal');
+
+    if (ageEl) ageEl.value = hero.age || 26;
+    if (locEl) locEl.value = hero.location || 'Metro Manila (NCR)';
+    if (incEl) incEl.value = hero.baseIncome || 45000;
+    if (savEl) savEl.value = hero.baseSavings || 120000;
+    if (remEl) remEl.value = hero.familyRemittance || 10000;
+    if (chkSand) chkSand.checked = (hero.familyRemittance > 0 || hero.familySafetyNet === 'SandwichGen');
+    if (debtEl) debtEl.value = hero.debtPayment || 0;
+    if (depEl) depEl.innerText = hero.dependents || 2;
+
+    this.setWorkSetup(hero.workSetup || 'Hybrid');
+    this.onCommuteSlider(hero.commuteHours || 3.5);
+    this.setGuild(hero.guild || 'Tech');
+    this.setDebtType(hero.debtType || 'CreditCard');
+    this.setHmoShield(hero.hmoShield || 'Comprehensive');
+    this.setAiLeverage(hero.aiLeverage || 'AiAugmented');
+    this.setSocialCapital(hero.socialCapital || 'CommunityPeer');
+    this.setLearningVelocity(hero.learningVelocity || 'HyperAdaptive');
+    const customDesireEl = document.getElementById('inputCustomDesire');
+    if (customDesireEl) customDesireEl.value = hero.customDesire || '';
+
+    this.setDesireVector(hero.desireVector || (hero.customDesire ? 'Custom' : 'DollarClients'));
+
+    this.recalcCalibrationTelemetry();
+    this.switchPillarTab(1);
+  },
+
+  // Segmented State Toggles for Calibration Screen
+  setWorkSetup(setup) {
+    hero.workSetup = setup;
+    const setups = ['On-Site', 'Hybrid', 'Remote', 'Graveyard'];
+    setups.forEach(s => {
+      const btn = document.getElementById(`btnSetup-${s}`);
+      if (btn) {
+        btn.className = (s === setup) ? 'matrix-btn active-yellow py-1.5 px-1 text-center text-[11px]' : 'matrix-btn py-1.5 px-1 text-center text-[11px]';
+      }
+    });
+    this.recalcCalibrationTelemetry();
+  },
+
+  onCommuteSlider(val) {
+    const num = parseFloat(val);
+    hero.commuteHours = num;
+    const range = document.getElementById('inputCommuteRange');
+    const display = document.getElementById('commuteDisplayVal');
+    const warn = document.getElementById('commuteWarningText');
+
+    if (range) range.value = num;
+    if (display) display.innerText = `${num.toFixed(1)} HRS / DAY`;
+
+    const monthlyLostHours = Math.round(num * 22);
+    if (warn) {
+      if (num === 0) {
+        warn.className = 'text-[10px] font-mono text-rpg-emerald flex items-center gap-1.5 pt-1 border-t border-slate-850';
+        warn.innerHTML = '<i class="fa-solid fa-check"></i> <span>0h commute! Reclaimed ~45 hours/month for sleep & AI building.</span>';
+      } else {
+        warn.className = 'text-[10px] font-mono text-rose-400 flex items-center gap-1.5 pt-1 border-t border-slate-850';
+        warn.innerHTML = `<i class="fa-solid fa-triangle-exclamation"></i> <span>Commute tax equates to ${monthlyLostHours} hours/month of lost discretionary XP generation.</span>`;
+      }
+    }
+    this.recalcCalibrationTelemetry();
+  },
+
+  setGuild(guild) {
+    hero.guild = guild;
+    const guilds = ['BPO', 'Tech', 'Freelance', 'Corporate'];
+    guilds.forEach(g => {
+      const btn = document.getElementById(`btnGuild-${g}`);
+      if (btn) {
+        btn.className = (g === guild) ? 'matrix-btn active-cyan p-1.5 text-center text-[10px] leading-tight' : 'matrix-btn p-1.5 text-center text-[10px] leading-tight';
+      }
+    });
+  },
+
+  setDebtType(debt) {
+    hero.debtType = debt;
+    const debts = ['CreditCard', 'SalaryLoan', 'SSS', 'Auto', 'None'];
+    debts.forEach(d => {
+      const btn = document.getElementById(`btnDebt-${d}`);
+      if (btn) {
+        btn.className = (d === debt) ? 'matrix-btn active-yellow px-2 py-1 text-[10px]' : 'matrix-btn px-2 py-1 text-[10px]';
+      }
+    });
+
+    const debtInput = document.getElementById('inputDebtPayment');
+    if (debtInput) {
+      if (debt === 'None') {
+        debtInput.value = 0;
+      } else if (parseInt(debtInput.value) === 0) {
+        debtInput.value = 4500;
+      }
+    }
+    this.recalcCalibrationTelemetry();
+  },
+
+  setHmoShield(hmo) {
+    hero.hmoShield = hmo;
+    const hmos = ['Comprehensive', 'Solo', 'PhilHealth'];
+    hmos.forEach(h => {
+      const card = document.getElementById(`hmoOption-${h}`);
+      if (card) {
+        if (h === hmo) {
+          card.className = 'selectable-card selected-gold p-2 flex items-start gap-2';
+          const r = card.querySelector('input[type=radio]');
+          if (r) r.checked = true;
         } else {
-          btn.classList.remove('opacity-50', 'pointer-events-none');
+          card.className = 'selectable-card p-2 flex items-start gap-2';
+          const r = card.querySelector('input[type=radio]');
+          if (r) r.checked = false;
+        }
+      }
+    });
+    this.recalcCalibrationTelemetry();
+  },
+
+  setAiLeverage(val) {
+    hero.aiLeverage = val;
+    const tiers = ['Traditional', 'AiAugmented', 'Architect10x'];
+    tiers.forEach(t => {
+      const btn = document.getElementById(`btnAi-${t}`);
+      if (btn) {
+        btn.className = (t === val) ? 'matrix-btn active-yellow w-full py-1 text-[9px] text-center font-bold' : 'matrix-btn w-full py-1 text-[9px] text-center';
+      }
+    });
+    this.recalcCalibrationTelemetry();
+  },
+
+  setSocialCapital(val) {
+    hero.socialCapital = val;
+    const tiers = ['LoneWolf', 'CommunityPeer', 'GlobalNetwork'];
+    tiers.forEach(t => {
+      const btn = document.getElementById(`btnSocial-${t}`);
+      if (btn) {
+        btn.className = (t === val) ? 'matrix-btn active-cyan w-full py-1 text-[9px] text-center font-bold' : 'matrix-btn w-full py-1 text-[9px] text-center';
+      }
+    });
+  },
+
+  setLearningVelocity(val) {
+    hero.learningVelocity = val;
+    const tiers = ['Steady', 'HyperAdaptive', 'Stagnant'];
+    tiers.forEach(t => {
+      const btn = document.getElementById(`btnLearning-${t}`);
+      if (btn) {
+        btn.className = (t === val) ? 'matrix-btn active-gold w-full py-1 text-[9px] text-center font-bold' : 'matrix-btn w-full py-1 text-[9px] text-center';
+      }
+    });
+  },
+
+  setDesireVector(val) {
+    hero.desireVector = val;
+    const desires = ['DollarClients', 'ProvincialWFH', 'FamilyHome', 'OwnBusiness', 'Custom'];
+    desires.forEach(d => {
+      const card = document.getElementById(`desireCard-${d}`);
+      if (card) {
+        if (d === val) {
+          card.className = (d === 'Custom') ? 'selectable-card selected-gold p-3 sm:col-span-2 border-2 border-purple-500 bg-purple-950/40 shadow-brutal-purple' : 'selectable-card selected-gold p-3';
+          const dot = card.querySelector('span:first-child');
+          if (dot) dot.innerText = (d === 'Custom') ? '★' : '●';
+        } else {
+          card.className = (d === 'Custom') ? 'selectable-card p-3 sm:col-span-2 border border-purple-500/60 bg-purple-950/20 hover:border-purple-400 transition-all' : 'selectable-card p-3';
+          const dot = card.querySelector('span:first-child');
+          if (dot) dot.innerText = (d === 'Custom') ? '✧' : '○';
         }
       }
     });
 
-    if (activeBtnId === 'btnGoogleAuth' && btnGoogleText) {
-      btnGoogleText.innerText = isLoading ? loadingText : 'CONTINUE WITH GOOGLE';
-    } else if (activeBtnId === 'guestAuthBtn' && btnGuestText) {
-      btnGuestText.innerText = isLoading ? loadingText : 'PLAY AS GUEST HERO (ANON MODE)';
-    } else if (btnEmailText) {
-      if (isLoading) {
-        btnEmailText.innerText = loadingText;
-      } else {
-        btnEmailText.innerText = this.authMode === 'register' ? 'FORGE NEW RECRUIT ACCOUNT' : 'INITIALIZE LOGIN';
+    if (val === 'Custom') {
+      const customInput = document.getElementById('inputCustomDesire');
+      if (customInput && !customInput.value.trim()) {
+        customInput.focus();
       }
     }
   },
 
-  navigateAfterAuth(user) {
-    // Isolated router destination for post-auth flow (Step 1: Archetype Class Selection)
-    this.navTo('screen-class-select');
+  onCustomDesireInput(val) {
+    hero.customDesire = val;
+    if (val.trim()) {
+      hero.desireVector = 'Custom';
+      const desires = ['DollarClients', 'ProvincialWFH', 'FamilyHome', 'OwnBusiness'];
+      desires.forEach(d => {
+        const card = document.getElementById(`desireCard-${d}`);
+        if (card) {
+          card.className = 'selectable-card p-3';
+          const dot = card.querySelector('span:first-child');
+          if (dot) dot.innerText = '○';
+        }
+      });
+      const customCard = document.getElementById('desireCard-Custom');
+      if (customCard) {
+        customCard.className = 'selectable-card selected-gold p-3 sm:col-span-2 border-2 border-purple-500 bg-purple-950/40 shadow-brutal-purple';
+        const dot = customCard.querySelector('span:first-child');
+        if (dot) dot.innerText = '★';
+      }
+    }
+
+    const doorsInput = document.getElementById('doorsCustomDesireInput');
+    if (doorsInput) doorsInput.value = val;
   },
 
-  async handleEmailAuthSubmit() {
-    this.hideAuthError();
-    const email = document.getElementById('authEmailInput')?.value?.trim();
-    const password = document.getElementById('authPasswordInput')?.value;
-    const displayName = document.getElementById('authDisplayNameInput')?.value?.trim();
+  setQuickCustomDesire(text) {
+    soundEngine.playSelect();
+    const input = document.getElementById('inputCustomDesire');
+    if (input) {
+      input.value = text;
+      input.classList.add('ring-2', 'ring-purple-400');
+      setTimeout(() => input.classList.remove('ring-2', 'ring-purple-400'), 300);
+    }
+    this.onCustomDesireInput(text);
+  },
 
-    if (!email || !password) {
-      this.showAuthError('Please provide both email cipher and access passphrase.');
+  async submitDoorsCustomDesire() {
+    soundEngine.playLevelUp();
+    const input = document.getElementById('doorsCustomDesireInput');
+    const val = input ? input.value.trim() : '';
+    if (!val) {
+      if (input) input.focus();
       return;
     }
+    hero.customDesire = val;
+    hero.desireVector = 'Custom';
 
-    if (this.authMode === 'register') {
-      await this.signUpWithEmail(email, password, displayName);
-    } else {
-      await this.signInWithEmail(email, password);
+    // Update Step 02 input as well
+    const step2Input = document.getElementById('inputCustomDesire');
+    if (step2Input) step2Input.value = val;
+
+    // Update Portal 3 in activeDestinyPortals
+    if (activeDestinyPortals && activeDestinyPortals[2]) {
+      activeDestinyPortals[2].title = val.length > 34 ? val.slice(0, 31).trim() + '...' : val.toUpperCase();
+      activeDestinyPortals[2].badge = 'CUSTOM DESIRE';
+      activeDestinyPortals[2].targetProfile = 'CUSTOM BESPOKE DREAM';
     }
+
+    await this.enterPortal('custom', val, activeDestinyPortals?.[2] || null, 2);
   },
 
-  async signInWithGoogle() {
-    soundEngine.playPowerup();
-    this.hideAuthError();
-    this.setAuthLoading(true, 'btnGoogleAuth', 'SYNCING GOOGLE NEURAL LINK...');
+  adjustDependents(delta) {
+    soundEngine.playBlip();
+    const depEl = document.getElementById('dependentsVal');
+    let current = parseInt(depEl ? depEl.innerText : '2') || 0;
+    current = Math.max(0, Math.min(8, current + delta));
+    hero.dependents = current;
+    if (depEl) depEl.innerText = current;
+    this.recalcCalibrationTelemetry();
+  },
 
-    try {
-      const provider = new GoogleAuthProvider();
-      const result = await signInWithPopup(auth, provider);
-      const user = result.user;
-      const userRef = doc(db, "users", user.uid);
-      const userSnap = await getDoc(userRef);
-
-      if (!userSnap.exists()) {
-        await setDoc(userRef, {
-          uid: user.uid,
-          email: user.email,
-          displayName: user.displayName,
-          isAnonymous: false,
-          createdAt: serverTimestamp(),
-          lastLoginAt: serverTimestamp()
-        });
-      } else {
-        await setDoc(userRef, {
-          lastLoginAt: serverTimestamp()
-        }, { merge: true });
+  toggleSandwichGenCheck(isChecked) {
+    soundEngine.playBlip();
+    const remInput = document.getElementById('inputFamilyRemittance');
+    if (remInput) {
+      if (!isChecked) {
+        remInput.value = 0;
+      } else if (parseInt(remInput.value) === 0) {
+        remInput.value = 10000;
       }
-
-      console.log("Google sign-in successful! UID:", user.uid);
-
-      this.setUserSession({
-        uid: user.uid,
-        email: user.email,
-        name: user.displayName || user.email,
-        photo: user.photoURL
-      });
-
-      this.navigateAfterAuth(user);
-
-    } catch (error) {
-      console.error("Google sign-in failed:", error);
-      this.showAuthError(error);
-    } finally {
-      this.setAuthLoading(false, 'btnGoogleAuth');
     }
+    this.recalcCalibrationTelemetry();
   },
 
-  async signUpWithEmail(email, password, displayName = '') {
+  applyQuickPreset(presetKey) {
     soundEngine.playPowerup();
-    this.hideAuthError();
-    this.setAuthLoading(true, 'btnEmailSubmit', 'FORGING ACCOUNT...');
-
-    try {
-      const result = await createUserWithEmailAndPassword(auth, email, password);
-      const user = result.user;
-      const userRef = doc(db, "users", user.uid);
-
-      await setDoc(userRef, {
-        uid: user.uid,
-        email: user.email,
-        displayName: displayName || user.displayName || email.split('@')[0],
-        isAnonymous: false,
-        createdAt: serverTimestamp(),
-        lastLoginAt: serverTimestamp()
-      });
-
-      console.log("Email sign-up successful! UID:", user.uid);
-
-      this.setUserSession({
-        uid: user.uid,
-        email: user.email,
-        name: displayName || user.displayName || user.email,
-        photo: null
-      });
-
-      this.navigateAfterAuth(user);
-
-    } catch (error) {
-      console.error("Email sign-up failed:", error);
-      this.showAuthError(error);
-    } finally {
-      this.setAuthLoading(false, 'btnEmailSubmit');
+    if (presetKey === 'bpo_graveyard') {
+      this.selectClass('bpo');
+      this.setWorkSetup('Graveyard');
+      this.onCommuteSlider(3.5);
+    } else if (presetKey === 'ortigas_sandwich') {
+      this.selectClass('bpo');
+      document.getElementById('inputIncome').value = 75000;
+      document.getElementById('inputSavings').value = 250000;
+      document.getElementById('inputFamilyRemittance').value = 20000;
+      this.setWorkSetup('Hybrid');
+      this.onCommuteSlider(3.0);
+    } else if (presetKey === 'cebu_va') {
+      this.selectClass('freelancer');
+      document.getElementById('inputLocation').value = 'Cebu IT Park';
+      document.getElementById('inputIncome').value = 55000;
+      this.setHmoShield('PhilHealth');
+      this.setWorkSetup('Remote');
+      this.onCommuteSlider(0);
+    } else if (presetKey === 'siargao_nomad') {
+      this.selectClass('freelancer');
+      document.getElementById('inputLocation').value = 'Siargao / La Union';
+      document.getElementById('inputIncome').value = 90000;
+      document.getElementById('inputSavings').value = 300000;
+      this.setWorkSetup('Remote');
+      this.onCommuteSlider(0);
+      this.setDesireVector('ProvincialWFH');
     }
+    this.recalcCalibrationTelemetry();
   },
 
-  async signInWithEmail(email, password) {
-    soundEngine.playPowerup();
-    this.hideAuthError();
-    this.setAuthLoading(true, 'btnEmailSubmit', 'VERIFYING CREDENTIALS...');
+  // --- Calibration 4-Pillar Tab & View Management ---
+  activePillarTab: 1,
+  isPillarsGridMode: false,
 
-    try {
-      const result = await signInWithEmailAndPassword(auth, email, password);
-      const user = result.user;
-      const userRef = doc(db, "users", user.uid);
+  switchPillarTab(tabNum) {
+    soundEngine.playSelect();
+    this.activePillarTab = tabNum;
 
-      await setDoc(userRef, {
-        lastLoginAt: serverTimestamp()
-      }, { merge: true });
-
-      console.log("Email sign-in successful! UID:", user.uid);
-
-      this.setUserSession({
-        uid: user.uid,
-        email: user.email,
-        name: user.displayName || user.email,
-        photo: user.photoURL || null
-      });
-
-      this.navigateAfterAuth(user);
-
-    } catch (error) {
-      console.error("Email sign-in failed:", error);
-      this.showAuthError(error);
-    } finally {
-      this.setAuthLoading(false, 'btnEmailSubmit');
+    // If currently in Grid Mode, revert back to Focused Tabs Mode
+    if (this.isPillarsGridMode) {
+      this.togglePillarsViewMode(false);
     }
-  },
 
-  setUserSession(user) {
-    const badge = document.getElementById('userBadgeContainer');
-    const img = document.getElementById('userAvatarImg');
-    const topHud = document.getElementById('topHeroHud');
-    if (badge && img) {
-      badge.classList.remove('hidden');
-      badge.classList.add('flex');
-      img.src = user.photo || 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%23fbbf24"><path d="M12 2a5 5 0 1 0 5 5 5 5 0 0 0-5-5zm0 12c-5.33 0-8 2.67-8 4v2h16v-2c0-1.33-2.67-4-8-4z"/></svg>';
-    }
-    if (topHud) {
-      topHud.classList.remove('hidden');
-      topHud.classList.add('flex');
-    }
-    const modalAuth = document.getElementById('modalFbAuth');
-    if (modalAuth) modalAuth.innerText = user.name;
-  },
+    // Update Tab Buttons UI
+    for (let i = 1; i <= 4; i++) {
+      const tabBtn = document.getElementById(`tabPillar-${i}`);
+      const section = document.getElementById(`pillarSection-${i}`);
 
-  async signOutUser() {
-    try {
-      await signOut(auth);
-      soundEngine.playBlip();
-      const badge = document.getElementById('userBadgeContainer');
-      const topHud = document.getElementById('topHeroHud');
-      if (badge) {
-        badge.classList.add('hidden');
-        badge.classList.remove('flex');
-      }
-      if (topHud) {
-        topHud.classList.add('hidden');
-        topHud.classList.remove('flex');
-      }
-      this.navTo('screen-title');
-      console.log("Sign-out successful!");
-    } catch (error) {
-      console.error("Sign-out failed:", error);
-    }
-  },
-
-  async signInAsGuest() {
-    soundEngine.playPowerup();
-    this.hideAuthError();
-    this.setAuthLoading(true, 'guestAuthBtn', 'ENTERING AS GUEST...');
-
-    try {
-      // Reuse an existing guest session so refreshes/clicks don't create new uids
-      const user = auth.currentUser?.isAnonymous
-        ? auth.currentUser
-        : (await signInAnonymously(auth)).user;
-
-      const userRef = doc(db, "users", user.uid);
-      const snap = await getDoc(userRef);
-
-      if (!snap.exists()) {
-        await setDoc(userRef, {
-          uid: user.uid,
-          email: null,
-          displayName: "Guest Hero",
-          isAnonymous: true,
-          createdAt: serverTimestamp(),
-          lastLoginAt: serverTimestamp()
-        });
-      } else {
-        await setDoc(userRef, { lastLoginAt: serverTimestamp() }, { merge: true });
-      }
-
-      this.setUserSession({ uid: user.uid, name: "Guest Hero", photo: null });
-      this.navigateAfterAuth(user);
-    } catch (error) {
-      console.error("Guest sign-in failed:", error);
-      this.showAuthError(error);
-    } finally {
-      this.setAuthLoading(false, 'guestAuthBtn');
-    }
-  },
-
-  // Archetype Data State
-  archetypes: [],
-  selectedArchetypeId: 'corp_tank',
-
-  async loadArchetypes() {
-    try {
-      this.archetypes = await getArchetypes();
-    } catch (err) {
-      console.warn("Failed to load archetypes asynchronously, using fallback:", err);
-      this.archetypes = ARCHETYPES;
-    }
-    this.renderArchetypeCards();
-  },
-
-  renderArchetypeCards() {
-    const grid = document.getElementById('archetypeCardsGrid');
-    if (!grid) return;
-
-    const list = this.archetypes && this.archetypes.length > 0 ? this.archetypes : ARCHETYPES;
-
-    grid.innerHTML = list.map((arch, idx) => {
-      const isSelected = arch.id === this.selectedArchetypeId;
-      const keyNum = idx + 1;
-
-      // Color coding & formatting for 3 stat bars
-      const statBarsHtml = (arch.stats || []).map(stat => {
-        const pct = Math.min(100, Math.max(0, (stat.value / stat.max) * 100));
-        let barColor = 'bg-rpg-gold';
-        if (stat.color === 'rose' || stat.isNegative) {
-          barColor = 'bg-rose-500';
-        } else if (stat.color === 'mana') {
-          barColor = 'bg-sky-400';
-        } else if (stat.color === 'slate') {
-          barColor = 'bg-slate-500';
-        } else if (stat.color === 'gold') {
-          barColor = 'bg-rpg-gold';
+      if (tabBtn) {
+        if (i === tabNum) {
+          tabBtn.className = 'pillar-tab-btn active-pillar px-3 py-1.5 font-bold flex items-center gap-1.5 border border-rpg-gold bg-dungeon-900 text-rpg-gold';
+          const numSpan = tabBtn.querySelector('span:first-child');
+          if (numSpan) numSpan.className = 'text-rpg-gold font-bold';
+        } else {
+          tabBtn.className = 'pillar-tab-btn px-3 py-1.5 font-bold flex items-center gap-1.5 border border-slate-800 bg-dungeon-950 text-slate-400 hover:text-white';
+          const numSpan = tabBtn.querySelector('span:first-child');
+          if (numSpan) numSpan.className = 'text-slate-500';
         }
-
-        const tagText = stat.tag ? ` <span class="text-[7px] text-slate-400 font-pixel">${stat.tag}</span>` : '';
-        const valueClass = stat.isNegative ? 'text-rose-400' : 'text-slate-200';
-
-        return `
-          <div>
-            <div class="flex justify-between items-center text-[8px] font-pixel mb-1">
-              <span class="text-slate-300 uppercase tracking-tight">${stat.label}</span>
-              <span class="${valueClass}">${stat.value} / ${stat.max}${tagText}</span>
-            </div>
-            <div class="w-full h-1.5 bg-slate-950 border border-slate-800 overflow-hidden">
-              <div class="h-full ${barColor} transition-all duration-300" style="width: ${pct}%"></div>
-            </div>
-          </div>
-        `;
-      }).join('');
-
-      // Buffs & Debuffs badges
-      const buffsHtml = (arch.buffs || []).map(b => {
-        const text = typeof b === 'string' ? b : (b.text || '');
-        const isCyan = text.includes('USD ARBITRAGE') || text.includes('EQUITY');
-        const formatted = (text.startsWith('BUFF:') || text.startsWith('DEBUFF:') || text.includes('EQUITY')) 
-          ? text 
-          : `BUFF: ${text}`;
-        const borderClass = isCyan ? 'border-sky-400/80 text-sky-400' : 'border-rpg-gold/80 text-rpg-gold';
-        return `<span class="border ${borderClass} font-pixel text-[8px] px-1.5 py-0.5 whitespace-nowrap">${formatted}</span>`;
-      }).join('');
-
-      const debuffsHtml = (arch.debuffs || []).map(d => {
-        const text = typeof d === 'string' ? d : (d.text || '');
-        const isNeutral = text.includes('13TH MO');
-        const formatted = (text.startsWith('BUFF:') || text.startsWith('DEBUFF:') || text.includes('13TH MO')) 
-          ? text 
-          : `DEBUFF: ${text}`;
-        const borderClass = isNeutral ? 'border-slate-600 text-slate-400' : 'border-rose-500/80 text-rose-400';
-        return `<span class="border ${borderClass} font-pixel text-[8px] px-1.5 py-0.5 whitespace-nowrap">${formatted}</span>`;
-      }).join('');
-
-      // Financials layout
-      let financialsHtml = '';
-      if (arch.isSpecialFinancials) {
-        financialsHtml = `
-          <div class="grid grid-cols-2 gap-y-1 text-xs font-mono border-y border-slate-800/80 py-2.5 my-3">
-            <span class="text-slate-400 font-pixel text-[8px]">REVENUE:</span>
-            <span class="text-right text-slate-200 font-bold font-mono text-[11px]">${arch.revenueLabel || 'VARIABLE (MSME)'}</span>
-
-            <span class="text-slate-400 font-pixel text-[8px]">RUNWAY:</span>
-            <span class="text-right text-rpg-gold font-bold font-mono text-[11px]">${arch.runwayLabel || '₱350,000 (6.5 mos)'}</span>
-
-            <span class="text-slate-400 font-pixel text-[8px]">REGULATORY:</span>
-            <span class="text-right text-slate-300 font-mono text-[10px]">${arch.regulatoryLabel || 'SEC/BIR compliance'}</span>
-
-            <span class="text-slate-400 font-pixel text-[8px]">TEAM BURN:</span>
-            <span class="text-right text-slate-200 font-mono text-[10px]">${arch.teamBurnLabel || '₱45,000/mo OPEX'}</span>
-          </div>
-        `;
-      } else {
-        const earningColor = arch.id === 'agile_mage' ? 'text-sky-400' : 'text-rpg-gold';
-        const savingsColor = arch.id === 'novice_explorer' ? 'text-slate-200' : 'text-sky-400';
-        const commuteColor = arch.id === 'agile_mage' ? 'text-sky-400' : 'text-slate-200';
-
-        financialsHtml = `
-          <div class="grid grid-cols-2 gap-y-1 text-xs font-mono border-y border-slate-800/80 py-2.5 my-3">
-            <span class="text-slate-400 font-pixel text-[8px]">EARNING:</span>
-            <span class="text-right ${earningColor} font-bold font-mono text-[11px]">${arch.earningLabel || `₱${arch.earning.toLocaleString()}/mo`}</span>
-
-            <span class="text-slate-400 font-pixel text-[8px]">SAVINGS:</span>
-            <span class="text-right ${savingsColor} font-bold font-mono text-[11px]">${arch.savingsLabel || `₱${arch.savings.toLocaleString()}`}</span>
-
-            <span class="text-slate-400 font-pixel text-[8px]">COMMUTE:</span>
-            <span class="text-right ${commuteColor} font-mono text-[10px]">${arch.commuteLabel}</span>
-
-            <span class="text-slate-400 font-pixel text-[8px]">REMITTANCE:</span>
-            <span class="text-right text-slate-300 font-mono text-[10px]">${arch.remittanceLabel}</span>
-          </div>
-        `;
       }
 
-      // Container styling
-      const cardContainerStyle = isSelected
-        ? 'border-4 border-rpg-gold bg-dungeon-800 shadow-brutal-gold'
-        : 'border-3 border-slate-800 hover:border-slate-600 bg-slate-950/90';
+      if (section) {
+        if (i === tabNum) {
+          section.classList.remove('hidden');
+        } else {
+          section.classList.add('hidden');
+        }
+      }
+    }
 
-      const statusBadge = isSelected
-        ? '<span class="font-pixel text-[9px] text-rpg-gold font-bold">[ACTIVE]</span>'
-        : '<span class="font-pixel text-[9px] text-slate-500">[STANDBY]</span>';
+    // Scroll calibration view to top smoothly if on mobile
+    const charScreen = document.getElementById('screen-character-sheet');
+    if (charScreen && window.innerWidth < 768) {
+      charScreen.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  },
 
-      const actionButton = isSelected
-        ? `<button class="w-full py-2.5 bg-rpg-gold text-slate-950 font-bold border-2 border-slate-950 font-pixel text-[9px] flex items-center justify-center gap-1.5 shadow-brutal-sm cursor-default">
-             <i class="fa-solid fa-check"></i> SELECTED CLASS
-           </button>`
-        : `<button onclick="app.selectClass('${arch.id}')" class="w-full py-2.5 bg-slate-950 hover:bg-slate-900 text-sky-400 border-2 border-sky-500/70 hover:border-sky-400 font-pixel text-[9px] flex items-center justify-center gap-1.5 transition-all shadow-brutal-sm">
-             <i class="fa-solid fa-arrow-pointer"></i> SELECT ARCHETYPE
-           </button>`;
+  togglePillarsViewMode(forcedState = null) {
+    soundEngine.playSelect();
+    if (forcedState !== null) {
+      this.isPillarsGridMode = forcedState;
+    } else {
+      this.isPillarsGridMode = !this.isPillarsGridMode;
+    }
 
-      const recommendedBadgeHtml = arch.recommended
-        ? `<div class="absolute -top-3.5 right-4 bg-rpg-gold text-slate-950 px-2 py-0.5 font-pixel text-[8px] border-2 border-slate-950 shadow-brutal-sm font-bold uppercase tracking-wider">
-             ${arch.badgeText || '[RECOMMENDED TANK]'}
-           </div>`
-        : '';
+    const container = document.getElementById('pillarsContainer');
+    const label = document.getElementById('labelTogglePillarsView');
+    const icon = document.getElementById('iconTogglePillarsView');
+    const stepperBars = document.querySelectorAll('.pillar-stepper-bar');
 
-      return `
-        <div id="card-class-${arch.id}" class="class-card ${cardContainerStyle} relative p-4 flex flex-col justify-between transition-all cursor-pointer" onclick="app.selectClass('${arch.id}')">
-          ${recommendedBadgeHtml}
-          
-          <div>
-            <!-- Top Class Code + Active/Standby Indicator -->
-            <div class="flex items-center justify-between gap-2 mb-1.5">
-              <span class="font-pixel text-[9px] sm:text-[10px] text-sky-400 font-bold tracking-tight">
-                ${arch.classCode} // ${arch.archetype}
-              </span>
-              ${statusBadge}
+    if (this.isPillarsGridMode) {
+      // Switch container to 2-column grid
+      if (container) {
+        container.className = 'grid grid-cols-1 lg:grid-cols-2 gap-4';
+      }
+      // Show all 4 sections
+      for (let i = 1; i <= 4; i++) {
+        const sec = document.getElementById(`pillarSection-${i}`);
+        if (sec) sec.classList.remove('hidden');
+        const tabBtn = document.getElementById(`tabPillar-${i}`);
+        if (tabBtn) {
+          tabBtn.className = 'pillar-tab-btn px-3 py-1.5 font-bold flex items-center gap-1.5 border border-slate-800 bg-dungeon-950 text-slate-300';
+        }
+      }
+      // Hide individual sub-stepper bars in grid mode
+      stepperBars.forEach(el => el.classList.add('hidden'));
+
+      if (label) label.innerText = 'FOCUSED TABS';
+      if (icon) icon.className = 'fa-solid fa-rectangle-list text-rpg-gold';
+    } else {
+      // Revert container to single column stack
+      if (container) {
+        container.className = 'space-y-4';
+      }
+      // Show only active tab
+      for (let i = 1; i <= 4; i++) {
+        const sec = document.getElementById(`pillarSection-${i}`);
+        if (sec) {
+          if (i === this.activePillarTab) sec.classList.remove('hidden');
+          else sec.classList.add('hidden');
+        }
+      }
+      // Restore sub-stepper bars
+      stepperBars.forEach(el => el.classList.remove('hidden'));
+
+      // Re-highlight active tab button
+      this.switchPillarTab(this.activePillarTab);
+
+      if (label) label.innerText = 'VIEW ALL 4 (GRID)';
+      if (icon) icon.className = 'fa-solid fa-table-cells-large text-rpg-mana';
+    }
+  },
+
+  recalcCalibrationTelemetry() {
+    const inc = parseInt(document.getElementById('inputIncome')?.value) || 45000;
+    const sav = parseInt(document.getElementById('inputSavings')?.value) || 120000;
+    const rem = parseInt(document.getElementById('inputFamilyRemittance')?.value) || 0;
+    const debt = parseInt(document.getElementById('inputDebtPayment')?.value) || 0;
+    const commute = hero.commuteHours || 3.5;
+
+    // Estimated living cost based on location
+    const baseLiving = inc > 60000 ? inc * 0.45 : 22000;
+    const discCashflow = inc - (baseLiving + rem + debt);
+
+    // Burnout index calculation
+    let burnout = 40;
+    if (commute >= 3.5) burnout += 25;
+    else if (commute >= 1.5) burnout += 12;
+    if (rem > 0) burnout += 15;
+    if (hero.workSetup === 'Graveyard') burnout += 18;
+    if (hero.hmoShield === 'PhilHealth') burnout += 10;
+    if (hero.aiLeverage === 'AiAugmented') burnout -= 10;
+    if (hero.aiLeverage === 'Architect10x') burnout -= 15;
+    burnout = Math.max(15, Math.min(95, Math.round(burnout)));
+
+    // Class Tier
+    let classTier = 'Class C-Upper (NCR)';
+    if (inc >= 150000) classTier = 'Class A/B (High Net Worth)';
+    else if (inc >= 85000) classTier = 'Class B (Upper Middle)';
+    else if (inc >= 40000) classTier = 'Class C-Upper (NCR)';
+    else if (inc >= 22000) classTier = 'Class C-Middle';
+    else classTier = 'Class D (Striving)';
+
+    // Projected 5-yr net worth
+    const annualSavingsRate = Math.max(5000, discCashflow);
+    const projNetWorth = Math.round(sav + (annualSavingsRate * 60 * 1.35));
+
+    // Update Telemetry Elements
+    const cashEl = document.getElementById('telemetryCashflow');
+    if (cashEl) cashEl.innerText = `${discCashflow >= 0 ? '+' : ''}₱${discCashflow.toLocaleString()}/mo`;
+
+    const burnEl = document.getElementById('telemetryBurnout');
+    if (burnEl) {
+      const bLabel = burnout > 70 ? '[HIGH]' : (burnout > 45 ? '[MODERATE]' : '[LOW]');
+      burnEl.innerText = `${burnout}% ${bLabel}`;
+    }
+
+    const tierEl = document.getElementById('telemetryClassTier');
+    if (tierEl) tierEl.innerText = classTier;
+
+    const nwEl = document.getElementById('telemetryNetWorth');
+    if (nwEl) nwEl.innerText = `₱${projNetWorth.toLocaleString()}`;
+
+    // Runway HP Label
+    const runwayMonths = (sav / Math.max(15000, inc * 0.65)).toFixed(1);
+    const hpLabel = document.getElementById('runwayHpLabel');
+    if (hpLabel) hpLabel.innerText = `${runwayMonths} MO RUNWAY`;
+
+    // Debt Drain Label
+    const debtPct = Math.round((debt / inc) * 100);
+    const dDrain = document.getElementById('debtDrainLabel');
+    if (dDrain) dDrain.innerText = `DRAINS ${debtPct}% INCOME`;
+  },
+
+  async saveCharacterSheet(e) {
+    if (e && e.preventDefault) e.preventDefault();
+    soundEngine.playPowerup();
+
+    try {
+      hero.age = parseInt(document.getElementById('inputAge')?.value) || hero.age || 26;
+      hero.location = document.getElementById('inputLocation')?.value || hero.location || 'Metro Manila (NCR)';
+      hero.income = parseInt(document.getElementById('inputIncome')?.value) || hero.income || 45000;
+      hero.savings = parseInt(document.getElementById('inputSavings')?.value) || hero.savings || 120000;
+      hero.familyRemittance = parseInt(document.getElementById('inputFamilyRemittance')?.value) || 0;
+      hero.debtPayment = parseInt(document.getElementById('inputDebtPayment')?.value) || 0;
+
+      const customDesireEl = document.getElementById('inputCustomDesire');
+      if (customDesireEl && customDesireEl.value.trim()) {
+        hero.customDesire = customDesireEl.value.trim();
+        hero.desireVector = 'Custom';
+      }
+
+      const doorsInput = document.getElementById('doorsCustomDesireInput');
+      if (doorsInput) {
+        doorsInput.value = hero.customDesire || '';
+      }
+
+      // Update Top Header Hero Level
+      const hudText = document.getElementById('topHeroHudText');
+      if (hudText) hudText.innerText = `LV.${hero.age} ${(hero.className || 'HERO').toUpperCase()}`;
+
+      // Update Hall of Doors HUD
+      const dClass = document.getElementById('doorsHudClass');
+      const dInc = document.getElementById('doorsHudIncome');
+      if (dClass) dClass.innerText = hero.className || 'The BPO Night Owl';
+      if (dInc) dInc.innerText = `₱${Math.round((hero.income || 45000) / 1000)}k/mo`;
+    } catch (err) {
+      console.warn('[app] Could not read form values:', err);
+    }
+
+    // Immediate Screen Transition
+    this.navTo('screen-hall-of-doors', 'Multiverse');
+
+    // Asynchronously synthesize and render portals
+    try {
+      await this.synthesizeAndRenderPortals();
+    } catch (err) {
+      console.error('[app] synthesizeAndRenderPortals failed:', err);
+    }
+  },
+
+  async openAiHeroAnalysisModal() {
+    soundEngine.playPowerup();
+
+    // Read current form values into hero
+    hero.age = parseInt(document.getElementById('inputAge')?.value) || hero.age || 26;
+    hero.location = document.getElementById('inputLocation')?.value || hero.location || 'Metro Manila (NCR)';
+    hero.income = parseInt(document.getElementById('inputIncome')?.value) || hero.income || 45000;
+    hero.savings = parseInt(document.getElementById('inputSavings')?.value) || hero.savings || 120000;
+    hero.familyRemittance = parseInt(document.getElementById('inputFamilyRemittance')?.value) || 0;
+    hero.debtPayment = parseInt(document.getElementById('inputDebtPayment')?.value) || 0;
+
+    const modal = document.getElementById('aiHeroAnalysisModal');
+    const loading = document.getElementById('aiHeroAnalysisLoading');
+    const body = document.getElementById('aiHeroAnalysisBody');
+    const authBanner = document.getElementById('aiHeroAuthStatusBanner');
+    const diagTag = document.getElementById('aiHeroDiagTag');
+
+    if (modal) modal.classList.remove('hidden');
+    if (loading) loading.classList.remove('hidden');
+    if (body) body.classList.add('hidden');
+
+    // Update Auth Banner Gating UI
+    const isAuth = geminiService.isAiAuthorized();
+    if (authBanner) {
+      if (isAuth) {
+        authBanner.innerHTML = `
+          <div class="bg-emerald-950/40 border border-emerald-500/80 p-2.5 font-mono text-xs flex items-center justify-between gap-2 text-emerald-300">
+            <div class="flex items-center gap-2">
+              <i class="fa-solid fa-sparkles text-rpg-gold text-sm"></i>
+              <span><strong>GEMINI 2.5 AI LIVE:</strong> Real-time LLM Diagnostic & Custom Desire synthesis active for <strong>${currentUser.displayName}</strong> (${currentUser.email}).</span>
             </div>
-
-            <!-- Age & Location Subtitle -->
-            <div class="font-pixel text-[8px] text-slate-400 uppercase tracking-tight mb-1">
-              ${arch.ageRange} // ${arch.location}
-            </div>
-
-            <!-- Class Name Title -->
-            <h3 class="font-pixel text-xs sm:text-sm text-white tracking-wide mb-2 drop-shadow-[0_1px_0_#020617]">
-              ${arch.name}
-            </h3>
-
-            <!-- Financials Matrix -->
-            ${financialsHtml}
-
-            <!-- Buffs & Debuffs Badges -->
-            <div class="flex flex-wrap gap-1.5 my-3">
-              ${buffsHtml}
-              ${debuffsHtml}
-            </div>
-
-            <!-- 3 Stat Bars -->
-            <div class="space-y-2.5 mb-4">
-              ${statBarsHtml}
-            </div>
+            <span class="text-[9px] bg-emerald-900 text-emerald-300 px-1.5 py-0.5 border border-emerald-400 font-bold shrink-0">AUTH GRANTED</span>
           </div>
-
-          <!-- Bottom Action Button -->
-          <div class="pt-2">
-            ${actionButton}
+        `;
+        if (diagTag) {
+          diagTag.innerText = '[GEMINI 2.5 AI LIVE]';
+          diagTag.className = 'text-emerald-400 bg-emerald-950/60 px-1.5 py-0.5 border border-emerald-900 text-[9px] font-bold';
+        }
+      } else {
+        authBanner.innerHTML = `
+          <div class="bg-amber-950/40 border border-amber-500/60 p-3 font-mono text-xs flex flex-col sm:flex-row items-center justify-between gap-2.5">
+            <div class="flex items-center gap-2 text-amber-300 text-[11px]">
+              <i class="fa-solid fa-lock text-base text-amber-400"></i>
+              <span><strong>GUEST MODE:</strong> Standard algorithmic diagnostic active. Sign in with Google / Gmail to unlock <strong>Live Gemini 2.5 AI Analysis & Custom Reasoning</strong>.</span>
+            </div>
+            <button type="button" onclick="app.closeAiHeroAnalysisModal(); app.openGoogleAuthModal();" class="btn-brutal px-3 py-1 bg-white hover:bg-slate-100 text-slate-950 font-bold text-[11px] shrink-0 flex items-center gap-1.5 border border-slate-950 shadow-sm">
+              <i class="fa-brands fa-google text-slate-900"></i>
+              <span>SIGN IN WITH GOOGLE</span>
+            </button>
           </div>
+        `;
+        if (diagTag) {
+          diagTag.innerText = '[STANDARD DIAGNOSTIC]';
+          diagTag.className = 'text-amber-400 bg-amber-950/60 px-1.5 py-0.5 border border-amber-900 text-[9px] font-bold';
+        }
+      }
+    }
+
+    try {
+      const diagData = await geminiService.analyzeHeroSheet(hero);
+      
+      const diagText = document.getElementById('aiHeroDiagnosisText');
+      if (diagText) diagText.innerText = diagData.diagnostic;
+
+      const pathList = document.getElementById('aiPathwaysList');
+      if (pathList && Array.isArray(diagData.pathways)) {
+        pathList.innerHTML = '';
+        diagData.pathways.forEach((p, idx) => {
+          const card = document.createElement('div');
+          card.className = 'selectable-card p-2.5 transition-all cursor-pointer hover:border-sky-400';
+          card.onclick = () => app.selectAiPathway(p.desire);
+          card.innerHTML = `
+            <div class="flex justify-between items-center text-xs font-bold text-rpg-gold mb-1 font-mono">
+              <span>${p.title}</span>
+              <span class="text-[9px] text-rpg-mana border border-rpg-mana/60 px-1 py-0.5 bg-sky-950/40">SELECT</span>
+            </div>
+            <p class="text-[11px] text-slate-300 font-mono leading-relaxed">${p.desire}</p>
+          `;
+          pathList.appendChild(card);
+        });
+      }
+
+      const activeDesireInput = document.getElementById('aiActiveDesireInput');
+      if (activeDesireInput) {
+        activeDesireInput.value = diagData.primaryDesire || (diagData.pathways?.[0]?.desire) || '';
+      }
+
+      if (loading) loading.classList.add('hidden');
+      if (body) body.classList.remove('hidden');
+    } catch (err) {
+      console.error('[app] AI Hero Analysis failed:', err);
+      if (loading) loading.classList.add('hidden');
+      if (body) body.classList.remove('hidden');
+    }
+  },
+
+  closeAiHeroAnalysisModal() {
+    soundEngine.playBlip();
+    const modal = document.getElementById('aiHeroAnalysisModal');
+    if (modal) modal.classList.add('hidden');
+  },
+
+  selectAiPathway(desireText) {
+    soundEngine.playSelect();
+    const input = document.getElementById('aiActiveDesireInput');
+    if (input) {
+      input.value = desireText;
+      input.classList.add('ring-1', 'ring-amber-400');
+      setTimeout(() => input.classList.remove('ring-1', 'ring-amber-400'), 400);
+    }
+  },
+
+  applyAiDesireAndProceed() {
+    soundEngine.playLevelUp();
+    const input = document.getElementById('aiActiveDesireInput');
+    const desireVal = input ? input.value.trim() : '';
+
+    if (desireVal) {
+      hero.customDesire = desireVal;
+      hero.desireVector = 'Custom';
+    }
+
+    this.closeAiHeroAnalysisModal();
+    this.saveCharacterSheet();
+  },
+
+  syncPortalsToForkTimelines(portals) {
+    if (!Array.isArray(portals) || portals.length === 0) return;
+    const p1 = portals[0];
+    const p2 = portals[1];
+    const p3 = portals[2];
+
+    if (p1) {
+      const p1Sim = geminiService.buildCalculatedSimulation(hero, p1.title, p1.id || 'tech');
+      FORK_TIMELINES[0] = {
+        id: 'fork_alpha',
+        title: p1.title.startsWith('⚡') ? p1.title : `⚡ ${p1.title}`,
+        desc: `${p1.taxCode || 'BIR 8% Flat Tax'} / ${p1.wealthGrowth || 'Net +₱145k/mo'}`,
+        badge: p1.badge || 'ACTIVE REALITY',
+        scenarioKey: p1.id || 'tech',
+        portalData: p1,
+        years: p1Sim.years,
+        curveball: p1Sim.curveball,
+        quests: p1Sim.quests,
+        overallStrategicThesis: p1Sim.overallStrategicThesis
+      };
+    }
+
+    if (p2) {
+      const p2Sim = geminiService.buildCalculatedSimulation(hero, p2.title, p2.id || 'nomad');
+      FORK_TIMELINES[1] = {
+        id: 'fork_beta',
+        title: p2.title.startsWith('🌴') ? p2.title : `🌴 ${p2.title}`,
+        desc: `${p2.taxCode || '-40% Living Cost'} / ${p2.wealthGrowth || 'Low Cost, High Sun'}`,
+        badge: p2.badge || 'FORK B',
+        scenarioKey: p2.id || 'nomad',
+        portalData: p2,
+        years: p2Sim.years,
+        curveball: p2Sim.curveball,
+        quests: p2Sim.quests,
+        overallStrategicThesis: p2Sim.overallStrategicThesis
+      };
+    }
+
+    if (p3) {
+      const p3Title = hero.customDesire || p3.title;
+      const p3Sim = geminiService.buildCalculatedSimulation(hero, p3Title, p3.id || 'custom');
+      FORK_TIMELINES[2] = {
+        id: 'fork_gamma',
+        title: p3Title.startsWith('✨') ? p3Title : `✨ ${p3Title}`,
+        desc: `${p3.taxCode || 'Custom Pathway'} / ${p3.wealthGrowth || 'Calculated Matrix'}`,
+        badge: p3.badge || (hero.customDesire ? 'CUSTOM DESIRE' : 'FORK C'),
+        scenarioKey: p3.id || 'custom',
+        portalData: p3,
+        years: p3Sim.years,
+        curveball: p3Sim.curveball,
+        quests: p3Sim.quests,
+        overallStrategicThesis: p3Sim.overallStrategicThesis
+      };
+    }
+  },
+
+  async synthesizeAndRenderPortals(forceRefresh = false) {
+    const container = document.getElementById('destinyPortalsContainer');
+    const bannerText = document.getElementById('aiSynthesisBannerText');
+    const dClass = document.getElementById('doorsHudClass');
+    const dInc = document.getElementById('doorsHudIncome');
+    const isAuth = geminiService.isAiAuthorized();
+
+    if (dClass) dClass.innerText = hero.className;
+    if (dInc) dInc.innerText = `₱${Math.round(hero.income / 1000)}k/mo`;
+
+    if (bannerText) {
+      if (isAuth) {
+        bannerText.innerHTML = `✨ GEMINI 2.5 AI: Synthesizing 3 Bespoke Portals for <strong>${hero.className}</strong> (₱${Math.round(hero.income/1000)}k/mo, ${hero.location})...`;
+      } else {
+        bannerText.innerHTML = `📊 STANDARD ENGINE: Calibrating 3 Destinies for <strong>${hero.className}</strong> (Guest Mode)...`;
+      }
+    }
+
+    if (container) {
+      container.innerHTML = `
+        <div class="col-span-full py-12 text-center space-y-3 font-mono">
+          <div class="w-10 h-10 mx-auto border-2 border-rpg-gold border-t-transparent rounded-full animate-spin"></div>
+          <div class="text-xs text-rpg-gold font-bold uppercase tracking-wider animate-pulse">GENERATING MULTIVERSE REALITY NODES...</div>
+          <div class="text-[10px] text-slate-400">Balancing Philippine living indices, AI leverage multiplier, and family remittance vectors</div>
         </div>
       `;
-    }).join('');
-  },
-
-  selectClass(classKey) {
-    soundEngine.playSelect();
-
-    // Map legacy alias to modern ID if applicable
-    const aliasMap = {
-      bpo: 'corp_tank',
-      freelancer: 'agile_mage',
-      freshgrad: 'novice_explorer',
-      custom: 'wildcard_rogue'
-    };
-    const resolvedId = aliasMap[classKey] || classKey;
-    this.selectedArchetypeId = resolvedId;
-
-    const list = this.archetypes && this.archetypes.length > 0 ? this.archetypes : ARCHETYPES;
-    const arch = list.find(a => a.id === resolvedId) || list[0];
-
-    // Populate hero state
-    hero.id = arch.id;
-    hero.className = arch.name;
-    hero.archetypeTitle = arch.archetype;
-    hero.income = arch.baseIncome || arch.earning || 45000;
-    hero.savings = arch.baseSavings || arch.savings || 120000;
-    hero.workSetup = arch.workSetup || 'On-Site';
-    hero.commuteHours = arch.commuteHours !== undefined ? arch.commuteHours : 3.5;
-    hero.guild = arch.guild || 'BPO';
-    hero.hmoShield = arch.hmoShield || 'Comprehensive';
-    hero.familySafetyNet = arch.familySafetyNet || 'SandwichGen';
-    hero.familyRemittance = arch.familyRemittance !== undefined ? arch.familyRemittance : 10000;
-    hero.aiLeverage = arch.aiLeverage || 'Traditional';
-    hero.socialCapital = arch.socialCapital || 'LoneWolf';
-    hero.learningVelocity = arch.learningVelocity || 'Steady';
-    hero.desireVector = arch.desireVector || 'DollarClients';
-    hero.riskStance = arch.riskStance || 'Paladin';
-
-    // Populate Character Sheet inputs for Step 2
-    const setVal = (id, val) => {
-      const el = document.getElementById(id);
-      if (el) el.value = val;
-    };
-    setVal('inputIncome', hero.income);
-    setVal('inputSavings', hero.savings);
-    setVal('inputWorkSetup', hero.workSetup);
-    setVal('inputCommute', hero.commuteHours);
-    setVal('inputGuild', hero.guild);
-    setVal('inputHmoShield', hero.hmoShield);
-    setVal('inputFamilySafetyNet', hero.familySafetyNet);
-    setVal('inputFamilyRemittance', hero.familyRemittance);
-    setVal('inputAiLeverage', hero.aiLeverage);
-    setVal('inputSocialCapital', hero.socialCapital);
-    setVal('inputLearningVelocity', hero.learningVelocity);
-    setVal('inputDesireVector', hero.desireVector);
-    setVal('inputRiskStance', hero.riskStance);
-
-    const classBadge = document.getElementById('selectedClassBadge');
-    if (classBadge) {
-      classBadge.innerText = arch.name.replace(/^THE\s+/i, '').toUpperCase();
     }
 
-    // Update Calibrate button label at bottom of Screen 2
-    const calibrateLabel = document.getElementById('btnCalibrateLabel');
-    if (calibrateLabel) {
-      const cleanName = arch.name.replace(/^THE\s+/i, '');
-      calibrateLabel.innerText = `CALIBRATE [${cleanName}]`;
-    }
+    try {
+      const portals = await geminiService.generateDynamicPortals(hero);
+      activeDestinyPortals = portals;
+      this.syncPortalsToForkTimelines(portals);
 
-    // Re-render cards to reflect selected state
-    this.renderArchetypeCards();
-  },
-
-  selectClassByKey(num) {
-    const keyMap = {
-      1: 'corp_tank',
-      2: 'agile_mage',
-      3: 'novice_explorer',
-      4: 'wildcard_rogue'
-    };
-    const targetId = keyMap[num];
-    if (targetId) {
-      this.selectClass(targetId);
-    }
-  },
-
-  proceedToCalibration() {
-    soundEngine.playLevelUp();
-    this.navTo('screen-character-sheet');
-  },
-
-  saveCharacterSheet(e) {
-    e.preventDefault();
-    soundEngine.playPowerup();
-
-    hero.age = parseInt(document.getElementById('inputAge').value) || 25;
-    hero.location = document.getElementById('inputLocation').value;
-    hero.income = parseInt(document.getElementById('inputIncome').value) || 45000;
-    hero.savings = parseInt(document.getElementById('inputSavings').value) || 120000;
-    hero.workSetup = document.getElementById('inputWorkSetup').value;
-    hero.commuteHours = parseFloat(document.getElementById('inputCommute').value) || 0;
-    hero.guild = document.getElementById('inputGuild').value;
-    hero.debtType = document.getElementById('inputDebtType').value;
-    hero.debtPayment = parseInt(document.getElementById('inputDebtPayment').value) || 0;
-    hero.hmoShield = document.getElementById('inputHmoShield').value;
-    hero.familySafetyNet = document.getElementById('inputFamilySafetyNet').value;
-    hero.familyRemittance = parseInt(document.getElementById('inputFamilyRemittance').value) || 0;
-    hero.aiLeverage = document.getElementById('inputAiLeverage').value;
-    hero.socialCapital = document.getElementById('inputSocialCapital').value;
-    hero.learningVelocity = document.getElementById('inputLearningVelocity').value;
-    hero.desireVector = document.getElementById('inputDesireVector').value;
-    hero.riskStance = document.getElementById('inputRiskStance').value;
-
-    const partyRadios = document.getElementsByName('partySize');
-    for (let r of partyRadios) {
-      if (r.checked) {
-        hero.partySize = parseInt(r.value);
-        break;
+      if (bannerText) {
+        if (isAuth) {
+          bannerText.innerHTML = `✨ GEMINI 2.5 AI LIVE: 3 Bespoke Portals Synthesized for <strong>${hero.className}</strong> (₱${Math.round(hero.income/1000)}k/mo, ${hero.location})`;
+        } else {
+          bannerText.innerHTML = `
+            <div class="flex flex-wrap items-center justify-between w-full gap-2 font-mono text-xs">
+              <span class="text-slate-300">📊 STANDARD ALGORITHMIC ENGINE (GUEST MODE) // Calibrated to PH Economic Indices & BIR 8% Tax</span>
+              <button type="button" onclick="app.openGoogleAuthModal()" class="btn-brutal px-2.5 py-1 bg-white hover:bg-slate-100 text-slate-950 font-bold text-[11px] flex items-center gap-1.5 border border-slate-950 shadow-sm">
+                <i class="fa-brands fa-google text-slate-900"></i>
+                <span>UNLOCK GEMINI LIVE AI</span>
+              </button>
+            </div>
+          `;
+        }
       }
-    }
 
-    // Update Top HUD
-    document.getElementById('hudHeroName').innerText = hero.className;
-    document.getElementById('hudHeroLvl').innerText = hero.age;
-    document.getElementById('hudHeroGold').innerText = `₱${hero.income.toLocaleString()}/mo`;
+      if (container && Array.isArray(portals)) {
+        container.innerHTML = '';
+        portals.forEach((p, idx) => {
+          const borderClass = p.theme === 'emerald' ? 'border-emerald-500 shadow-brutal-emerald' : (p.theme === 'purple' ? 'border-purple-500 shadow-brutal-purple' : 'border-sky-500 shadow-brutal-cyan');
+          const badgeBg = p.theme === 'emerald' ? 'bg-emerald-400 text-slate-950' : (p.theme === 'purple' ? 'bg-purple-500 text-white' : 'bg-rpg-gold text-slate-950');
+          const titleColor = p.theme === 'emerald' ? 'text-rpg-emerald' : (p.theme === 'purple' ? 'text-rpg-void' : 'text-rpg-mana');
+          const btnBg = p.theme === 'emerald' ? 'bg-rpg-emerald hover:bg-emerald-400 text-slate-950' : (p.theme === 'purple' ? 'bg-purple-600 hover:bg-purple-500 text-white' : 'bg-rpg-mana hover:bg-sky-400 text-slate-950');
 
-    // Update Hall of Doors HUD
-    document.getElementById('doorsHudClass').innerText = hero.className;
-    document.getElementById('doorsHudIncome').innerText = `₱${(hero.income / 1000)}k/mo`;
-    document.getElementById('doorsHudLocation').innerText = hero.location;
-    document.getElementById('doorsHudWork').innerText = `${hero.workSetup} (${hero.commuteHours}h)`;
-    document.getElementById('doorsHudDebt').innerText = hero.debtPayment > 0 ? `₱${hero.debtPayment.toLocaleString()}/mo` : '✨ Clean';
+          const cardWrapper = document.createElement('div');
+          cardWrapper.className = 'relative pt-2.5 flex flex-col';
+          cardWrapper.innerHTML = `
+            <div class="absolute top-0 right-3 z-10 px-2 py-0.5 ${badgeBg} font-bold font-mono text-[9px] border border-slate-950 shadow-sm">
+              ${p.badge || 'RECOMMENDED'}
+            </div>
 
-    const desireMap = {
-      DollarClients: 'Double Income ($)',
-      ProvincialWFH: 'Provincial Peace 🌴',
-      OwnBusiness: 'Own PH Venture 💼',
-      OFWMigration: 'OFW Relocation ✈️',
-      FamilyHome: 'Family Home 🏠',
-      PeaceAutonomy: 'Autonomy & Sleep 🧘'
-    };
-    document.getElementById('doorsHudDesire').innerText = desireMap[hero.desireVector] || hero.desireVector;
+            <div onclick="app.enterPortalByIndex(${idx})" class="class-card group bg-dungeon-900 border-2 ${borderClass} hover:border-rpg-gold p-4 flex-1 flex flex-col justify-between cursor-pointer transition-all">
+              <div>
+                <div class="flex items-center justify-between text-[10px] font-mono mb-1.5">
+                  <span class="${titleColor} font-bold">${p.portalTag || `PORTAL 0${idx+1}`}</span>
+                  <span class="text-rpg-gold font-bold">[ACTIVE]</span>
+                </div>
 
-    // Pre-fill Custom Door prompt
-    const customPrompt = document.getElementById('customPromptInput');
-    if (customPrompt) {
-      const prompts = {
-        DollarClients: `Scale to $3,000/mo remote foreign clients using AI leverage while living in ${hero.location} with ₱${hero.savings.toLocaleString()} initial safety runway`,
-        ProvincialWFH: `Move from ${hero.location} to a solar coastal sanctuary in La Union with ₱${hero.savings.toLocaleString()} relocation buffer`,
-        OwnBusiness: `Launch a specialty coffee cafe or B2B digital agency in ${hero.location} with ₱${hero.savings.toLocaleString()} capital`,
-        OFWMigration: `Relocate abroad as a skilled professional with family sponsorship`,
-        FamilyHome: `Build a ₱1.5M Pag-IBIG MP2 fund to buy a family house and retire parents`,
-        PeaceAutonomy: `Achieve a 4-day work week sovereign remote setup eliminating transit fatigue`
-      };
-      customPrompt.value = prompts[hero.desireVector] || '';
-    }
+                <div class="text-[10px] text-slate-400 font-mono uppercase mb-1">
+                  ${p.targetProfile || 'CALIBRATED PATHWAY'}
+                </div>
 
-    // Update Hall of Doors AI Diagnostic Banner
-    const isSandwich = hero.familyRemittance > 0 || hero.familySafetyNet === 'SandwichGen';
-    const diagShort = isSandwich
-      ? `Hero carries ₱${hero.familyRemittance.toLocaleString()}/mo remittance drag. Equalizer: ${hero.aiLeverage} output leverage + ${hero.socialCapital} network multiplier.`
-      : `Zero remittance burden. High-bandwidth runway with ${hero.aiLeverage} equalizer velocity.`;
-    const bannerDiag = document.getElementById('doorsAiAnalysisText');
-    if (bannerDiag) bannerDiag.innerText = diagShort;
+                <h3 class="text-sm font-bold text-white font-mono uppercase tracking-tight mb-2.5">
+                  ${p.title}
+                </h3>
 
-    this.navTo('screen-hall-of-doors');
-  },
+                <div class="space-y-1 text-xs font-mono py-2 border-y border-slate-800 mb-2.5 bg-dungeon-950/70 px-2.5">
+                  <div class="flex justify-between items-center">
+                    <span class="text-slate-400 text-[11px]">5-YR WEALTH:</span>
+                    <span class="font-bold text-rpg-gold">${p.wealthGrowth}</span>
+                  </div>
+                  <div class="flex justify-between items-center">
+                    <span class="text-slate-400 text-[11px]">TAX CODE:</span>
+                    <span class="font-bold ${titleColor}">${p.taxCode}</span>
+                  </div>
+                  <div class="flex justify-between items-center">
+                    <span class="text-slate-400 text-[11px]">COMMUTE:</span>
+                    <span class="text-slate-200">${p.commute}</span>
+                  </div>
+                  <div class="flex justify-between items-center">
+                    <span class="text-slate-400 text-[11px]">AI MULTIPLIER:</span>
+                    <span class="text-slate-300">${p.multiplier}</span>
+                  </div>
+                </div>
 
-  saveSheetAndOpenAiDesire() {
-    soundEngine.playPowerup();
-    // Save current sheet inputs
-    hero.age = parseInt(document.getElementById('inputAge').value) || 25;
-    hero.location = document.getElementById('inputLocation').value;
-    hero.income = parseInt(document.getElementById('inputIncome').value) || 45000;
-    hero.savings = parseInt(document.getElementById('inputSavings').value) || 120000;
-    hero.workSetup = document.getElementById('inputWorkSetup').value;
-    hero.commuteHours = parseFloat(document.getElementById('inputCommute').value) || 0;
-    hero.guild = document.getElementById('inputGuild').value;
-    hero.debtType = document.getElementById('inputDebtType').value;
-    hero.debtPayment = parseInt(document.getElementById('inputDebtPayment').value) || 0;
-    hero.hmoShield = document.getElementById('inputHmoShield').value;
-    hero.familySafetyNet = document.getElementById('inputFamilySafetyNet').value;
-    hero.familyRemittance = parseInt(document.getElementById('inputFamilyRemittance').value) || 0;
-    hero.aiLeverage = document.getElementById('inputAiLeverage').value;
-    hero.socialCapital = document.getElementById('inputSocialCapital').value;
-    hero.learningVelocity = document.getElementById('inputLearningVelocity').value;
-    hero.desireVector = document.getElementById('inputDesireVector').value;
-    hero.riskStance = document.getElementById('inputRiskStance').value;
+                <div class="flex flex-wrap gap-1 mb-3 text-[9px] font-mono">
+                  ${(p.buffs || []).map(b => `<span class="px-1.5 py-0.5 border border-slate-800 text-slate-300 bg-dungeon-950">${b}</span>`).join('')}
+                </div>
 
-    this.openCustomModal();
-    this.analyzeHeroSheetForDesires();
-  },
+                <div class="space-y-1.5 text-[10px] font-mono mb-3">
+                  <div>
+                    <div class="flex justify-between text-slate-400 mb-0.5">
+                      <span>WEALTH VELOCITY</span>
+                      <span class="text-rpg-gold font-bold">${p.wealthScore || 90} / 100</span>
+                    </div>
+                    <div class="stat-bar-track"><div class="stat-bar-fill-yellow" style="width: ${p.wealthScore || 90}%;"></div></div>
+                  </div>
 
-  async analyzeHeroSheetForDesires() {
-    soundEngine.playPowerup();
-    const btn = document.getElementById('btnAiAnalyzeHeroSheet');
-    const btnText = document.getElementById('btnAiAnalyzeText');
-    const diagBox = document.getElementById('aiHeroDiagnosticBox');
-    const diagText = document.getElementById('aiHeroDiagnosticText');
-    const optionsWrapper = document.getElementById('aiGeneratedOptionsWrapper');
-    const optionsList = document.getElementById('aiGeneratedOptionsList');
-    const customPrompt = document.getElementById('customPromptInput');
-    const modelBadge = document.getElementById('aiModelBadgeDiagnostic');
+                  <div>
+                    <div class="flex justify-between text-slate-400 mb-0.5">
+                      <span>CAREER AUTONOMY</span>
+                      <span class="text-rpg-mana font-bold">${p.autonomyScore || 88} / 100</span>
+                    </div>
+                    <div class="stat-bar-track"><div class="stat-bar-fill-cyan" style="width: ${p.autonomyScore || 88}%;"></div></div>
+                  </div>
 
-    const apiKey = localStorage.getItem('lifesim_gemini_api_key');
-    const activeModel = localStorage.getItem('lifesim_gemini_model') || 'gemini-3.6-flash';
+                  <div>
+                    <div class="flex justify-between text-slate-400 mb-0.5">
+                      <span>STRESS REDUCTION</span>
+                      <span class="text-emerald-400 font-bold">${p.stressReduction || 75} / 100 [SAFE]</span>
+                    </div>
+                    <div class="stat-bar-track"><div class="stat-bar-fill-cyan" style="width: ${p.stressReduction || 75}%;"></div></div>
+                  </div>
+                </div>
+              </div>
 
-    if (modelBadge) modelBadge.innerText = activeModel;
-    if (btnText) btnText.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-1"></i> Gemini AI Analyzing Character Sheet...';
-    if (btn) btn.disabled = true;
-
-    const isSandwich = hero.familyRemittance > 0 || hero.familySafetyNet === 'SandwichGen';
-    const annualCommuteSaved = Math.round(hero.commuteHours * 5 * 48);
-
-    // Fallback heuristic data tailored to the hero's exact inputs
-    let diagnostic = `Diagnosis for ${hero.className} in ${hero.location}: ${
-      isSandwich 
-        ? `You face a ₱${hero.familyRemittance.toLocaleString()}/mo family remittance obligation, but your ${hero.aiLeverage} skill leverage provides the asymmetric output needed to break the sandwich generation ceiling.`
-        : `With a solid safety runway of ₱${hero.savings.toLocaleString()}, you have the financial bandwidth to take calculated career leaps without endangering daily survival.`
-    } ${hero.commuteHours > 1.5 ? `Eliminating your ${hero.commuteHours}h daily commute will unlock ~${annualCommuteSaved} hours/year for high-income skill compounding.` : ''}`;
-
-    let primaryDesire = `Transition from ${hero.workSetup} in ${hero.location} to a high-leverage remote consultancy utilizing ${hero.aiLeverage} Generative AI workflows, scaling income from ₱${hero.income.toLocaleString()}/mo to ₱${Math.round(hero.income * 2.8).toLocaleString()}/mo while sustaining ₱${hero.familyRemittance.toLocaleString()}/mo family remittance.`;
-
-    let pathways = [
-      {
-        title: "🚀 Asymmetric AI Agency",
-        desire: `Launch a high-ticket AI automation & web development agency targeting foreign USD retainers ($2,500-$4,000/mo) using ₱${Math.round(hero.savings * 0.5).toLocaleString()} safety capital buffer.`
-      },
-      {
-        title: "🌴 Sovereign Provincial WFH",
-        desire: `Relocate from ${hero.location} to a coastal hub (Siargao/La Union) with 100% remote asynchronous clients, slashing living expenses by 35% and saving ${hero.commuteHours > 0 ? hero.commuteHours : 2}h daily transit.`
-      },
-      {
-        title: "🛡️ Sandwich Breaker & MP2",
-        desire: `Maintain steady employment while channeling 40% surplus into Pag-IBIG MP2 and high-yield digital banks to fully pay off ₱${hero.debtPayment.toLocaleString()}/mo debt and fund parents' HMO shield.`
-      }
-    ];
-
-    if (apiKey) {
-      const prompt = `Act as an expert Philippine Career & Financial Multiverse AI Engine.
-Analyze this Hero Character Sheet:
-- Class Archetype: ${hero.className} (Age: ${hero.age})
-- Location: ${hero.location} | Work Setup: ${hero.workSetup} (Commute: ${hero.commuteHours} hrs/day)
-- Income: ₱${hero.income.toLocaleString()}/mo | Liquid Savings: ₱${hero.savings.toLocaleString()}
-- Starting Line / Family Safety Net: ${hero.familySafetyNet} (Family Remittance: ₱${hero.familyRemittance.toLocaleString()}/mo)
-- Debt Burden: ₱${hero.debtPayment.toLocaleString()}/mo (${hero.debtType}) | Health Shield: ${hero.hmoShield}
-- The Equalizers: AI Leverage = ${hero.aiLeverage}, Social Capital = ${hero.socialCapital}, Learning Velocity = ${hero.learningVelocity}
-- Target Dream: ${hero.desireVector} | Combat Stance: ${hero.riskStance}
-
-Based on this Hero's starting line gap, sandwich generation drag, and AI speed equalizers, return a strictly valid JSON object with this exact schema:
-{
-  "diagnostic": "2-sentence strategic diagnosis of their biggest bottleneck and equalizing superpower.",
-  "primaryDesire": "1-2 sentence compelling desire statement ready to be simulated for 2026-2030 in the Philippines.",
-  "pathways": [
-    { "title": "Option 1 Title with emoji", "desire": "Full 1-sentence prompt for option 1" },
-    { "title": "Option 2 Title with emoji", "desire": "Full 1-sentence prompt for option 2" },
-    { "title": "Option 3 Title with emoji", "desire": "Full 1-sentence prompt for option 3" }
-  ]
-}
-Return ONLY the raw JSON object, without markdown formatting.`;
-
-      try {
-        const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${activeModel}:generateContent?key=${apiKey}`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            contents: [{ parts: [{ text: prompt }] }]
-          })
+              <button class="w-full py-1.5 ${btnBg} font-bold font-mono text-xs uppercase flex items-center justify-center gap-1.5 border border-slate-950 shadow-sm">
+                <i class="fa-solid fa-bolt text-xs"></i>
+                <span>${p.btnLabel || 'STEP INTO PORTAL →'}</span>
+              </button>
+            </div>
+          `;
+          container.appendChild(cardWrapper);
         });
-
-        if (res.ok) {
-          const data = await res.json();
-          let rawText = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
-          rawText = rawText.replace(/```json/gi, '').replace(/```/gi, '').trim();
-          const parsed = JSON.parse(rawText);
-          if (parsed.diagnostic) diagnostic = parsed.diagnostic;
-          if (parsed.primaryDesire) primaryDesire = parsed.primaryDesire;
-          if (Array.isArray(parsed.pathways) && parsed.pathways.length > 0) pathways = parsed.pathways;
-        }
-      } catch (err) {
-        console.warn("Gemini Character Sheet analysis failed, using specialized heuristic synthesizer:", err);
       }
-    }
-
-    // Render Diagnostic & Options
-    if (diagText) diagText.innerText = diagnostic;
-    if (diagBox) diagBox.classList.remove('hidden');
-
-    const bannerDiag = document.getElementById('doorsAiAnalysisText');
-    if (bannerDiag) bannerDiag.innerText = diagnostic;
-
-    if (customPrompt) customPrompt.value = primaryDesire;
-
-    if (optionsList) {
-      optionsList.innerHTML = '';
-      pathways.forEach(p => {
-        const card = document.createElement('button');
-        card.type = 'button';
-        card.className = 'p-2.5 bg-dungeon-950 border border-slate-700 hover:border-purple-400 hover:bg-purple-950/40 text-left transition-all rounded group';
-        card.onclick = () => {
-          soundEngine.playSelect();
-          if (customPrompt) customPrompt.value = p.desire;
-        };
-        card.innerHTML = `
-          <div class="font-pixel text-[9px] text-purple-300 group-hover:text-rpg-gold mb-1">${p.title}</div>
-          <div class="text-[10px] text-slate-300 font-mono line-clamp-2 leading-tight">${p.desire}</div>
-        `;
-        optionsList.appendChild(card);
-      });
-      if (optionsWrapper) optionsWrapper.classList.remove('hidden');
-    }
-
-    soundEngine.playLevelUp();
-    if (btnText) btnText.innerHTML = '<i class="fa-solid fa-check text-rpg-emerald mr-1"></i> Character Sheet Analyzed & Desire Formulated!';
-    if (btn) btn.disabled = false;
-  },
-
-  loadingRiftInterval: null,
-
-  startLoadingRiftAnimation(pathwayTitle, heroState) {
-    if (this.loadingRiftInterval) {
-      clearInterval(this.loadingRiftInterval);
-      this.loadingRiftInterval = null;
-    }
-
-    const titleEl = document.getElementById('portalLoadingScenarioTitle');
-    const heroNameEl = document.getElementById('telemetryHeroName');
-    const heroIncomeEl = document.getElementById('telemetryHeroIncome');
-    const heroSavingsEl = document.getElementById('telemetryHeroSavings');
-    const heroAiEl = document.getElementById('telemetryHeroAi');
-    const log1 = document.getElementById('terminalLog1');
-    const log2 = document.getElementById('terminalLog2');
-    const log3 = document.getElementById('terminalLog3');
-    const statusText = document.getElementById('portalActiveStatusText');
-    const progressBar = document.getElementById('portalProgressBar');
-    const progressStep = document.getElementById('portalProgressStepText');
-    const progressPct = document.getElementById('portalProgressPct');
-
-    if (titleEl) titleEl.innerText = `SIMULATING TIMELINE: ${pathwayTitle.toUpperCase()}`;
-    if (heroNameEl) heroNameEl.innerText = heroState.className || hero.className;
-    if (heroIncomeEl) heroIncomeEl.innerText = `₱${Math.round((heroState.income || hero.income) / 1000)}k/mo`;
-    if (heroSavingsEl) heroSavingsEl.innerText = `₱${Math.round((heroState.savings || hero.savings) / 1000)}k`;
-    if (heroAiEl) heroAiEl.innerText = heroState.aiLeverage || hero.aiLeverage;
-
-    const isSandwich = (heroState.familyRemittance || hero.familyRemittance) > 0 || (heroState.familySafetyNet || hero.familySafetyNet) === 'SandwichGen';
-
-    const phases = [
-      {
-        step: 'PHASE 1/5: INITIALIZING RIFT PROTOCOL',
-        status: 'INITIALIZING MULTIVERSE RIFT PROTOCOL...',
-        pct: 20,
-        log1: `> [00.1s] Telemetry link established for ${heroState.className || hero.className}...`,
-        log2: `> [00.3s] Respawn Zone: ${heroState.location || hero.location} (Base: ₱${(heroState.income || hero.income).toLocaleString()}/mo)...`,
-        log3: `> [00.6s] Ingesting Starting Line privilege and family safety net matrix...`
-      },
-      {
-        step: 'PHASE 2/5: PHILIPPINE ECONOMIC CALIBRATION',
-        status: 'CALIBRATING PHILIPPINE ECONOMIC REALITIES (BIR 8% & INFLATION)...',
-        pct: 42,
-        log1: `> [00.9s] Optimizing BIR Form 1701A (8% Flat Gross Income Tax) brackets...`,
-        log2: `> [01.2s] ${isSandwich ? `Factoring ₱${(heroState.familyRemittance || hero.familyRemittance).toLocaleString()}/mo family remittance drain...` : 'Zero parental remittance burden confirmed...'}`,
-        log3: `> [01.5s] Computing daily EDSA/transit fatigue penalty (${heroState.commuteHours || hero.commuteHours}h/day)...`
-      },
-      {
-        step: 'PHASE 3/5: EQUALIZER VECTOR INTEGRATION',
-        status: 'SYNCING EQUALIZER FACTORS (AI LEVERAGE & NETWORK MULTIPLIERS)...',
-        pct: 65,
-        log1: `> [01.8s] Applying AI Leverage Multiplier: ${heroState.aiLeverage || hero.aiLeverage}...`,
-        log2: `> [02.1s] Channeling Social Capital Network: ${heroState.socialCapital || hero.socialCapital}...`,
-        log3: `> [02.4s] Health Shield: ${heroState.hmoShield || hero.hmoShield} coverage armed against medical curveballs...`
-      },
-      {
-        step: 'PHASE 4/5: 5-YEAR COMPOUNDING & MP2 FORECASTING',
-        status: 'COMPOUNDING PAG-IBIG MP2 & 5-YEAR WEALTH TRAJECTORIES...',
-        pct: 85,
-        log1: `> [02.7s] Simulating 10,000 Monte Carlo outcome distributions (2026-2030)...`,
-        log2: `> [03.0s] Compounding Pag-IBIG MP2 dividend yields (~7.0% p.a.)...`,
-        log3: `> [03.3s] Synthesizing 5-year yearly cashflows & localized curveballs...`
-      },
-      {
-        step: 'PHASE 5/5: ACTION QUESTS & DECREE SYNTHESIS',
-        status: 'SYNTHESIZING PARALLEL DESTINY DECREE & ACTION QUESTS...',
-        pct: 94,
-        log1: `> [03.6s] Formulating tactical quests across Treasury, Skills, Bureaucracy, Mana...`,
-        log2: `> [03.9s] Converging parallel probability nodes into coherent life trajectory...`,
-        log3: `> [04.2s] Timeline convergence verified. Preparing Dashboard telemetry...`
-      }
-    ];
-
-    let currentPhaseIndex = 0;
-
-    const renderPhase = (p) => {
-      soundEngine.playBlip();
-      if (progressStep) progressStep.innerText = p.step;
-      if (statusText) statusText.innerText = `> ${p.status}`;
-      if (progressPct) progressPct.innerText = `${p.pct}%`;
-      if (progressBar) progressBar.style.width = `${p.pct}%`;
-      if (log1) log1.innerText = p.log1;
-      if (log2) log2.innerText = p.log2;
-      if (log3) log3.innerText = p.log3;
-    };
-
-    renderPhase(phases[0]);
-
-    this.loadingRiftInterval = setInterval(() => {
-      currentPhaseIndex = currentPhaseIndex + 1;
-      if (currentPhaseIndex < phases.length) {
-        renderPhase(phases[currentPhaseIndex]);
-      } else {
-        if (progressBar) progressBar.style.width = '96%';
-        if (progressPct) progressPct.innerText = '96%';
-        if (statusText) {
-          const cyclingPhrases = [
-            'COMPILING MULTIVERSE DATA...',
-            'FINALIZING SOVEREIGN CASHFLOW MATRIX...',
-            'CALIBRATING TIMELINE TRAJECTORIES...',
-            'SYNTHESIZING GEMINI AI FORESIGHT...'
-          ];
-          const randomPhrase = cyclingPhrases[Math.floor(Math.random() * cyclingPhrases.length)];
-          statusText.innerText = `> ${randomPhrase}`;
-        }
-      }
-    }, 1800);
-  },
-
-  stopLoadingRiftAnimation() {
-    if (this.loadingRiftInterval) {
-      clearInterval(this.loadingRiftInterval);
-      this.loadingRiftInterval = null;
+    } catch (err) {
+      console.error('[app] Portal synthesis failed:', err);
     }
   },
 
-  async enterPortal(scenarioKey, customPrompt = '') {
+  enterPortalByIndex(idx) {
+    if (activeDestinyPortals && activeDestinyPortals[idx]) {
+      const p = activeDestinyPortals[idx];
+      this.enterPortal(p.id || (idx === 0 ? 'tech' : (idx === 1 ? 'nomad' : 'custom')), p.title, p, idx);
+    } else {
+      const fallbackKeys = ['tech', 'nomad', 'custom'];
+      this.enterPortal(fallbackKeys[idx] || 'tech', '', null, idx);
+    }
+  },
+
+  async enterPortal(scenarioKey, customPrompt = '', portalData = null, targetForkIndex = null) {
     activeScenarioKey = scenarioKey;
-    const pathwayNames = {
-      tech: 'Shift to High-Income IT, Cloud & Cybersecurity Consulting',
-      nomad: 'Relocate to Coastal Province on 100% Asynchronous WFH',
-      corp: 'Launch an Independent High-Leverage Philippine Business Venture',
-      custom: customPrompt || 'Custom Strategic Multiverse Pathway'
-    };
-    const pathwayTitle = pathwayNames[scenarioKey] || customPrompt || 'Bespoke Multiverse Pathway';
     soundEngine.playDoorHum();
 
+    // Determine target fork index (0, 1, or 2)
+    const forkIdx = (targetForkIndex !== null && targetForkIndex !== undefined)
+      ? targetForkIndex 
+      : (scenarioKey === 'nomad' ? 1 : (scenarioKey === 'custom' ? 2 : 0));
+    activeForkIndex = forkIdx;
+
+    // Check Vault Quota for Guest Users
+    if (!currentUser.isLoggedIn && whatIfVault.length >= currentUser.maxVaultSlots) {
+      whatIfVault.pop();
+    }
+
+    const title = portalData?.title || customPrompt || (scenarioKey === 'nomad' ? 'Coastal Provincial Remote WFH' : (scenarioKey === 'custom' ? (hero.customDesire || 'Custom Multiverse Pathway') : 'IT & Cybersecurity Cloud Consulting'));
+
     this.navTo('screen-portal-loading');
-    this.startLoadingRiftAnimation(pathwayTitle, hero);
+    const titleEl = document.getElementById('portalLoadingScenarioTitle');
+    if (titleEl) titleEl.innerText = `SIMULATING TIMELINE: ${title.toUpperCase()}`;
 
-    // Run simulation pipeline in parallel with minimum dwell duration (2.2s)
-    const minDwellPromise = new Promise(resolve => setTimeout(resolve, 2200));
+    const logs = [
+      { t: 0, l1: `> Opening timeline rift with Gemini Multiverse Engine...`, l2: `> Injecting Hero Baseline: ₱${(hero.income||45000).toLocaleString()}/mo | Savings: ₱${(hero.savings||120000).toLocaleString()}...`, l3: `> Factoring ₱${(hero.familyRemittance||0).toLocaleString()}/mo remittance drag...`, p: '30%' },
+      { t: 700, l1: `> Computing Equalizer velocity: AI Leverage (${hero.aiLeverage}) + Social Capital...`, l2: `> Health Shield: ${hero.hmoShield} | Commute: ${hero.commuteHours}h/day...`, l3: `> Synthesizing 2026-2030 yearly cashflows & localized curveballs...`, p: '70%' },
+      { t: 1400, l1: `> Converging 5-Year Philippine probability distribution nodes...`, l2: `> Compounding Pag-IBIG MP2 & BIR 8% flat-rate ledger...`, l3: `> Multiverse Timeline generated! Launching Analytical Dashboard...`, p: '100%' }
+    ];
 
-    let simResult;
+    logs.forEach(step => {
+      setTimeout(() => {
+        soundEngine.playBlip();
+        const l1 = document.getElementById('terminalLog1');
+        const l2 = document.getElementById('terminalLog2');
+        const l3 = document.getElementById('terminalLog3');
+        const bar = document.getElementById('portalProgressBar');
+        if (l1) l1.innerText = step.l1;
+        if (l2) l2.innerText = step.l2;
+        if (l3) l3.innerText = step.l3;
+        if (bar) bar.style.width = step.p;
+      }, step.t);
+    });
+
+    // Run AI Timeline Simulation in Parallel
     try {
-      const [result] = await Promise.all([
-        runSimulationPipeline(hero, scenarioKey, customPrompt, generateFullAiSimulation),
-        minDwellPromise
-      ]);
-      simResult = result;
-    } catch (err) {
-      console.warn("Simulation pipeline encountered error, generating fallback simulation:", err);
-      simResult = buildDynamicCalculatedSimulation(hero, pathwayTitle, scenarioKey);
+      const simResult = await geminiService.generateTimelineSimulation(hero, scenarioKey, title);
+      if (simResult && simResult.years) {
+        const emoji = forkIdx === 0 ? '⚡ ' : (forkIdx === 1 ? '🌴 ' : '✨ ');
+        const cleanTitle = title.startsWith('⚡') || title.startsWith('🌴') || title.startsWith('✨')
+          ? title 
+          : `${emoji}${title}`;
+
+        FORK_TIMELINES[forkIdx] = {
+          id: `fork_${forkIdx === 0 ? 'alpha' : (forkIdx === 1 ? 'beta' : 'gamma')}`,
+          title: cleanTitle,
+          desc: simResult.overallStrategicThesis ? (simResult.overallStrategicThesis.slice(0, 80) + '...') : (portalData?.taxCode || 'Calibrated 5-Year Pathway'),
+          badge: portalData?.badge || (forkIdx === 0 ? 'ACTIVE REALITY' : (forkIdx === 1 ? 'FORK B' : 'CUSTOM DESIRE')),
+          scenarioKey: scenarioKey,
+          portalData: portalData,
+          years: simResult.years,
+          curveball: simResult.curveball,
+          quests: simResult.quests,
+          overallStrategicThesis: simResult.overallStrategicThesis
+        };
+      }
+    } catch (e) {
+      console.warn('[app] Live simulation synthesis error, using calculated engine:', e);
     }
 
-    this.stopLoadingRiftAnimation();
-
-    // Finalize Loading UI visual state
-    const progressBar = document.getElementById('portalProgressBar');
-    const progressPct = document.getElementById('portalProgressPct');
-    const progressStep = document.getElementById('portalProgressStepText');
-    const statusText = document.getElementById('portalActiveStatusText');
-    const log3 = document.getElementById('terminalLog3');
-
-    if (progressBar) progressBar.style.width = '100%';
-    if (progressPct) progressPct.innerText = '100%';
-    if (progressStep) progressStep.innerText = 'PARALLEL DESTINY SYNTHESIZED!';
-    if (statusText) statusText.innerText = '> TIMELINE COMPLETE! ENTERING DESTINY DASHBOARD...';
-    if (log3) log3.innerText = `> [COMPLETE] ${simResult.isAiGenerated ? '✨ Gemini AI Multiverse Generated!' : '⚡ Localized Engine Trajectory Calculated!'}`;
-
-    // Attach metadata
-    simResult.id = 'whatif_' + Date.now();
-    simResult.createdAt = new Date().toLocaleTimeString('en-PH', { hour: '2-digit', minute: '2-digit' });
-    simResult.heroName = hero.className;
-    simResult.heroAge = hero.age;
-    simResult.scenarioKey = scenarioKey;
-
-    // Save into shared state and sessionStorage / localStorage
-    activeAiSimulationData = simResult;
-    activeWhatIfId = simResult.id;
-    try {
-      sessionStorage.setItem('lifesim_active_simulation', JSON.stringify(simResult));
-    } catch (e) {}
-
-    const existingIndex = whatIfVault.findIndex(v => v.scenarioName === simResult.scenarioName);
-    if (existingIndex >= 0) {
-      whatIfVault[existingIndex] = simResult;
-    } else {
-      whatIfVault.unshift(simResult);
+    // Save into What-If Vault
+    const newSim = {
+      id: 'whatif_' + Date.now(),
+      title: title,
+      createdAt: new Date().toLocaleTimeString('en-PH', { hour: '2-digit', minute: '2-digit' }),
+      scenarioKey: scenarioKey,
+      syncedToCloud: currentUser.isLoggedIn
+    };
+    whatIfVault.unshift(newSim);
+    localStorage.setItem('lifesim_whatif_vault', JSON.stringify(whatIfVault));
+    if (currentUser.isLoggedIn) {
+      await firebaseService.saveVaultItem(currentUser.uid, newSim);
     }
-    try {
-      localStorage.setItem('lifesim_whatif_vault', JSON.stringify(whatIfVault));
-    } catch (e) {}
+    this.renderVaultModal();
 
     setTimeout(() => {
       soundEngine.playLevelUp();
-      this.renderWhatIfSwitcher();
-      this.renderForesightMatrix();
-      timelineEngine.setYear(2026);
-      timelineEngine.initCharts();
-      this.navTo('screen-dashboard');
-    }, 450);
+      this.switchForkTimeline(forkIdx);
+      this.navTo('screen-dashboard', 'Multiverse');
+    }, 1800);
   },
 
-  renderWhatIfSwitcher() {
-    const count = whatIfVault.length;
+  switchForkTimeline(index) {
+    soundEngine.playSelect();
+    activeForkIndex = index;
+
+    // Ensure target fork has simulation data
+    const fork = FORK_TIMELINES[index];
+    if (!fork || !fork.years) {
+      const fallbackSim = geminiService.buildCalculatedSimulation(hero, fork?.title || 'Alternative Pathway', fork?.scenarioKey || 'tech');
+      if (fork) {
+        fork.years = fallbackSim.years;
+        fork.curveball = fallbackSim.curveball;
+        fork.quests = fallbackSim.quests;
+        fork.overallStrategicThesis = fallbackSim.overallStrategicThesis;
+      }
+    }
+
+    timelineEngine.updateDashboardMetrics();
+    timelineEngine.initCharts();
+  },
+
+  renderVaultModal() {
+    const vGrid = document.getElementById('whatIfVaultGrid');
+    const vEmpty = document.getElementById('whatIfVaultEmpty');
     const hCount = document.getElementById('headerVaultCount');
-    const dCount = document.getElementById('dashVaultCount');
-    const drsCount = document.getElementById('doorsVaultCount');
-    if (hCount) hCount.innerText = count;
-    if (dCount) dCount.innerText = count;
-    if (drsCount) drsCount.innerText = count;
+    const vQuota = document.getElementById('vaultStorageQuotaLabel');
+    const vUpgradeBanner = document.getElementById('vaultGuestUpgradeBanner');
 
-    // 1. Render Dashboard Switcher Tabs
-    const tabContainer = document.getElementById('whatIfTimelineTabs');
-    if (tabContainer) {
-      tabContainer.innerHTML = '';
-      if (whatIfVault.length === 0) {
-        tabContainer.innerHTML = '<span class="text-xs text-slate-500 font-mono italic">No other timelines yet. Enter a portal or submit a desire to create one!</span>';
+    if (hCount) hCount.innerText = whatIfVault.length;
+
+    if (vQuota) {
+      if (currentUser.isLoggedIn) {
+        vQuota.innerHTML = `<span class="text-rpg-emerald font-bold"><i class="fa-solid fa-cloud mr-1"></i> CLOUD SYNCED (UNLIMITED)</span>`;
       } else {
-        whatIfVault.forEach(sim => {
-          const isActive = sim.id === activeWhatIfId;
-          const peakIncome = sim.years && sim.years['2030'] ? `₱${(sim.years['2030'].monthlyIncome/1000).toFixed(0)}k/mo` : '';
-          const tab = document.createElement('div');
-          tab.className = `group flex items-center gap-1.5 px-3 py-1.5 border-2 text-xs font-mono transition-all cursor-pointer rounded ${
-            isActive 
-              ? 'bg-indigo-600 text-white border-indigo-400 font-bold shadow-brutal-sm' 
-              : 'bg-dungeon-950 text-slate-300 border-slate-800 hover:border-indigo-400 hover:text-white'
-          }`;
-          tab.onclick = () => app.switchWhatIfTimeline(sim.id);
-          tab.innerHTML = `
-            <i class="fa-solid ${isActive ? 'fa-circle-dot text-rpg-gold' : 'fa-code-branch text-slate-500'} text-[10px]"></i>
-            <span class="truncate max-w-[200px]">${sim.scenarioName}</span>
-            ${peakIncome ? `<span class="px-1 py-0.2 bg-slate-900/80 text-amber-300 font-pixel text-[8px] rounded border border-slate-700">${peakIncome}</span>` : ''}
-            <button onclick="app.deleteWhatIfTimeline('${sim.id}', event)" class="ml-1 text-slate-400 hover:text-rose-400 font-pixel text-[9px]" title="Delete What-If">×</button>
-          `;
-          tabContainer.appendChild(tab);
-        });
+        vQuota.innerHTML = `<span class="text-rpg-gold font-bold">GUEST STORAGE: ${whatIfVault.length}/${currentUser.maxVaultSlots} SLOTS USED</span>`;
       }
     }
 
-    // 2. Render Hall of Doors Tray
-    const doorsTray = document.getElementById('doorsWhatIfTray');
-    const doorsList = document.getElementById('doorsWhatIfList');
-    if (doorsTray && doorsList) {
-      if (whatIfVault.length > 0) {
-        doorsTray.classList.remove('hidden');
-        doorsList.innerHTML = '';
-        whatIfVault.forEach(sim => {
-          const pill = document.createElement('button');
-          pill.type = 'button';
-          pill.className = 'px-2.5 py-1 bg-dungeon-900 border border-slate-700 hover:border-indigo-400 text-slate-200 text-xs font-mono rounded flex items-center gap-1.5 shadow-brutal-sm';
-          pill.onclick = () => app.switchWhatIfTimeline(sim.id);
-          pill.innerHTML = `
-            <i class="fa-solid fa-code-branch text-indigo-400 text-[10px]"></i>
-            <span class="truncate max-w-[220px]">${sim.scenarioName}</span>
-          `;
-          doorsList.appendChild(pill);
-        });
+    if (vUpgradeBanner) {
+      if (!currentUser.isLoggedIn && whatIfVault.length >= currentUser.maxVaultSlots) {
+        vUpgradeBanner.classList.remove('hidden');
       } else {
-        doorsTray.classList.add('hidden');
+        vUpgradeBanner.classList.add('hidden');
       }
     }
 
-    // 3. Render Vault Modal Grid
-    const vaultGrid = document.getElementById('whatIfVaultGrid');
-    const vaultEmpty = document.getElementById('whatIfVaultEmpty');
-    if (vaultGrid && vaultEmpty) {
+    if (vGrid && vEmpty) {
       if (whatIfVault.length === 0) {
-        vaultGrid.innerHTML = '';
-        vaultEmpty.classList.remove('hidden');
+        vGrid.innerHTML = '';
+        vEmpty.classList.remove('hidden');
       } else {
-        vaultEmpty.classList.add('hidden');
-        vaultGrid.innerHTML = '';
+        vEmpty.classList.add('hidden');
+        vGrid.innerHTML = '';
+
         whatIfVault.forEach(sim => {
-          const isActive = sim.id === activeWhatIfId;
-          const yr2026 = sim.years ? sim.years['2026'] : null;
-          const yr2030 = sim.years ? sim.years['2030'] : null;
           const card = document.createElement('div');
-          card.className = `bg-slate-950 border-3 ${isActive ? 'border-indigo-500 shadow-brutal-purple' : 'border-slate-800'} p-4 rounded flex flex-col justify-between`;
+          card.className = 'bg-dungeon-950 border border-slate-800 p-3 flex flex-col justify-between font-mono text-xs';
           card.innerHTML = `
             <div>
-              <div class="flex items-start justify-between gap-2 border-b border-slate-800 pb-2 mb-2.5">
-                <div>
-                  <span class="font-pixel text-[8px] text-indigo-400 uppercase">${sim.createdAt ? `Simulated at ${sim.createdAt}` : 'Multiverse Timeline'}</span>
-                  <h4 class="font-pixel text-xs text-white leading-snug mt-0.5">${sim.scenarioName}</h4>
-                </div>
-                <button onclick="app.deleteWhatIfTimeline('${sim.id}', event)" class="text-slate-500 hover:text-rose-400 font-pixel text-[10px] p-1" title="Delete Timeline">
-                  <i class="fa-solid fa-trash"></i>
-                </button>
+              <div class="flex justify-between text-[10px] text-slate-400 mb-1">
+                <span class="text-rpg-gold font-bold">TIMELINE FORK</span>
+                <span>${sim.createdAt}</span>
               </div>
-
-              <div class="grid grid-cols-2 gap-2 text-xs font-mono mb-3">
-                <div class="bg-dungeon-900 p-2 border border-slate-800 rounded">
-                  <span class="text-slate-400 text-[10px] block">2026 Starting:</span>
-                  <span class="text-slate-200 font-bold">₱${yr2026 ? yr2026.monthlyIncome.toLocaleString() : '---'}/mo</span>
-                </div>
-                <div class="bg-dungeon-900 p-2 border border-slate-800 rounded">
-                  <span class="text-rpg-gold text-[10px] block">2030 Peak:</span>
-                  <span class="text-rpg-emerald font-bold text-sm">₱${yr2030 ? yr2030.monthlyIncome.toLocaleString() : '---'}/mo</span>
-                </div>
-                <div class="bg-dungeon-900 p-2 border border-slate-800 rounded">
-                  <span class="text-slate-400 text-[10px] block">Peak Wealth:</span>
-                  <span class="text-amber-400 font-bold">₱${yr2030 ? yr2030.cumulativeSavings.toLocaleString() : '---'}</span>
-                </div>
-                <div class="bg-dungeon-900 p-2 border border-slate-800 rounded">
-                  <span class="text-slate-400 text-[10px] block">Stress & Free:</span>
-                  <span class="text-cyan-300 font-bold">${yr2030 ? `${yr2030.stress}/100 | ${yr2030.freeHours}h free` : '---'}</span>
-                </div>
-              </div>
+              <h4 class="font-bold text-white text-xs mb-2">${sim.title}</h4>
             </div>
-
-            <div class="pt-2 border-t border-slate-800 flex justify-between items-center">
-              ${isActive ? `
-                <span class="px-2.5 py-1 bg-emerald-950 text-emerald-400 border border-emerald-500 font-pixel text-[9px] flex items-center gap-1">
-                  <i class="fa-solid fa-check"></i> CURRENTLY ACTIVE
-                </span>
-              ` : `
-                <button onclick="app.switchWhatIfTimeline('${sim.id}')" class="btn-brutal px-4 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white font-pixel text-[9px] border-2 border-slate-950 shadow-brutal-sm flex items-center gap-1">
-                  <i class="fa-solid fa-code-branch"></i> SWITCH TO THIS TIMELINE
-                </button>
-              `}
+            <div class="flex justify-between items-center pt-2 border-t border-slate-850">
+              <button onclick="app.switchForkTimeline(${sim.scenarioKey === 'nomad' ? 1 : 0}); app.closeWhatIfVaultModal(); app.navTo('screen-dashboard', 'Multiverse');" class="btn-brutal px-3 py-1 bg-sky-950 text-rpg-mana border border-rpg-mana text-[10px] font-bold">
+                VIEW DASHBOARD
+              </button>
+              <button onclick="app.deleteVaultItem('${sim.id}')" class="text-slate-500 hover:text-rose-400 text-xs" title="Delete Timeline">
+                <i class="fa-solid fa-trash"></i>
+              </button>
             </div>
           `;
-          vaultGrid.appendChild(card);
+          vGrid.appendChild(card);
         });
       }
     }
   },
 
-  switchWhatIfTimeline(simId) {
-    const found = whatIfVault.find(v => v.id === simId);
-    if (!found) return;
-    soundEngine.playPowerup();
-    activeWhatIfId = simId;
-    activeAiSimulationData = found;
-    activeScenarioKey = found.scenarioKey || 'custom';
-    this.closeWhatIfVaultModal();
-    this.renderWhatIfSwitcher();
-    this.renderForesightMatrix();
-    timelineEngine.setYear(2026);
-    timelineEngine.initCharts();
-    this.navTo('screen-dashboard');
-  },
-
-  deleteWhatIfTimeline(simId, e) {
-    if (e) e.stopPropagation();
+  async deleteVaultItem(id) {
     soundEngine.playBlip();
-    whatIfVault = whatIfVault.filter(v => v.id !== simId);
+    whatIfVault = whatIfVault.filter(v => v.id !== id);
     localStorage.setItem('lifesim_whatif_vault', JSON.stringify(whatIfVault));
-    if (activeWhatIfId === simId) {
-      if (whatIfVault.length > 0) {
-        this.switchWhatIfTimeline(whatIfVault[0].id);
-      } else {
-        activeWhatIfId = null;
-        activeAiSimulationData = null;
-      }
+    if (currentUser.isLoggedIn) {
+      await firebaseService.deleteVaultItem(currentUser.uid, id);
     }
-    this.renderWhatIfSwitcher();
+    this.renderVaultModal();
   },
 
   openWhatIfVaultModal() {
     soundEngine.playPowerup();
-    this.renderWhatIfSwitcher();
+    this.renderVaultModal();
     const modal = document.getElementById('whatIfVaultModal');
     if (modal) modal.classList.remove('hidden');
   },
@@ -2246,187 +2119,241 @@ Return ONLY the raw JSON object, without markdown formatting.`;
     if (modal) modal.classList.add('hidden');
   },
 
-  renderForesightMatrix() {
-    if (!activeAiSimulationData) return;
-    const annualCommuteHoursSaved = Math.round((hero.commuteHours || 0) * 5 * 48);
-
-    document.getElementById('foresightWorkSummary').innerText = `${hero.workSetup} (${hero.commuteHours}h Commute)`;
-    document.getElementById('foresightCommuteImpact').innerText = hero.commuteHours > 0 
-      ? `Reclaims ~${annualCommuteHoursSaved} hrs/yr in remote pathways` 
-      : 'Zero commute drain; high energy focus';
-
-    const netText = hero.familyRemittance > 0 
-      ? `₱${hero.familyRemittance.toLocaleString()}/mo Family Remittance (${hero.familySafetyNet})`
-      : `🛡️ Strong Safety Net (${hero.familySafetyNet})`;
-
-    document.getElementById('foresightDebtSummary').innerText = `${netText} | ${hero.debtPayment > 0 ? `₱${hero.debtPayment.toLocaleString()}/mo Debt` : 'Zero Debt'}`;
-    document.getElementById('foresightRunwayImpact').innerText = hero.debtPayment > 0 
-      ? `Debt cleared by early 2027 via strategic cashflow compounding` 
-      : 'Clean cashflow fuels rapid Pag-IBIG MP2 compounding';
-
-    const desireMap = {
-      DollarClients: 'Double Income ($) Retainer',
-      ProvincialWFH: 'Provincial Sanctuary',
-      OwnBusiness: 'Independent PH Venture',
-      OFWMigration: 'Global Migration',
-      FamilyHome: 'Family Home & Retire Parents',
-      PeaceAutonomy: 'Mental Peace & Autonomy'
-    };
-
-    document.getElementById('foresightDesireSummary').innerText = `${desireMap[hero.desireVector] || hero.desireVector} | ${hero.riskStance}`;
-    document.getElementById('foresightDesireImpact').innerText = `Equalizers: AI Leverage (${hero.aiLeverage}) + Network (${hero.socialCapital})`;
-
-    const activeModelName = localStorage.getItem('lifesim_gemini_model') || 'gemini-3.6-flash';
-    document.getElementById('foresightNarrativeDynamic').innerHTML = `
-      <div class="inline-block px-2 py-0.5 bg-purple-900/60 text-purple-300 font-pixel text-[8px] uppercase border border-purple-500 mb-2">
-        ✨ 100% AI-Generated Multiverse Simulation (${activeModelName})
-      </div>
-      <div class="whitespace-pre-line text-slate-200 leading-relaxed">${activeAiSimulationData.overallStrategicThesis}</div>
-    `;
-  },
-
   openCustomModal() {
     soundEngine.playBlip();
-    document.getElementById('customScenarioModal').classList.remove('hidden');
+    const modal = document.getElementById('customScenarioModal');
+    if (modal) modal.classList.remove('hidden');
   },
 
   closeCustomModal() {
     soundEngine.playBlip();
-    document.getElementById('customScenarioModal').classList.add('hidden');
+    const modal = document.getElementById('customScenarioModal');
+    if (modal) modal.classList.add('hidden');
   },
 
-  fillCustomPreset(text) {
+  fillCustomPreset(txt) {
     soundEngine.playSelect();
-    document.getElementById('customPromptInput').value = text;
+    const input = document.getElementById('customPromptInput');
+    if (input) input.value = txt;
   },
 
   submitCustomScenario() {
-    const prompt = document.getElementById('customPromptInput').value.trim();
-    if (!prompt) {
-      alert('Please enter a desire prompt!');
+    const input = document.getElementById('customPromptInput');
+    const val = input ? input.value.trim() : '';
+    if (!val) {
+      alert('Please enter your custom desire statement!');
       return;
     }
     this.closeCustomModal();
-    this.enterPortal('custom', prompt);
+    this.enterPortal('custom', val);
+  },
+
+  openAdminModal() {
+    soundEngine.playPowerup();
+    const modal = document.getElementById('adminGeminiModal');
+    if (modal) {
+      const input = document.getElementById('inputGeminiApiKey');
+      const sel = document.getElementById('selectGeminiModel');
+      const customInput = document.getElementById('inputCustomGeminiModel');
+      const customWrap = document.getElementById('customModelWrapper');
+      
+      const savedKey = geminiService.getApiKey();
+      const savedModel = geminiService.getModel();
+      
+      if (input) input.value = savedKey;
+      if (sel) {
+        if (['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-1.5-pro'].includes(savedModel)) {
+          sel.value = savedModel;
+          if (customWrap) customWrap.classList.add('hidden');
+        } else {
+          sel.value = 'custom';
+          if (customInput) customInput.value = savedModel;
+          if (customWrap) customWrap.classList.remove('hidden');
+        }
+      }
+      modal.classList.remove('hidden');
+    }
+  },
+
+  closeAdminModal() {
+    soundEngine.playBlip();
+    const modal = document.getElementById('adminGeminiModal');
+    if (modal) modal.classList.add('hidden');
+  },
+
+  onModelSelectChange() {
+    const sel = document.getElementById('selectGeminiModel');
+    const wrap = document.getElementById('customModelWrapper');
+    if (sel && wrap) {
+      wrap.classList.toggle('hidden', sel.value !== 'custom');
+    }
+  },
+
+  saveAdminApiKey() {
+    soundEngine.playLevelUp();
+    const key = document.getElementById('inputGeminiApiKey')?.value.trim();
+    const sel = document.getElementById('selectGeminiModel')?.value;
+    const customTag = document.getElementById('inputCustomGeminiModel')?.value.trim();
+    const model = sel === 'custom' ? (customTag || 'gemini-2.5-flash') : (sel || 'gemini-2.5-flash');
+
+    geminiService.setApiKey(key);
+    geminiService.setModel(model);
+
+    alert(key ? `✨ Gemini AI Activated!\nModel: ${model}\nLive Multiverse Synthesis ready.` : 'ℹ️ Gemini API Key cleared. Using standard simulation engine.');
+    this.closeAdminModal();
+
+    // Refresh portal view or banner if active
+    const doorsScreen = document.getElementById('screen-hall-of-doors');
+    if (doorsScreen && !doorsScreen.classList.contains('hidden')) {
+      this.synthesizeAndRenderPortals();
+    }
   },
 
   generateAndGoToQuestLog() {
     soundEngine.playLevelUp();
-    const title = activeAiSimulationData ? activeAiSimulationData.scenarioName : 'AI MULTIVERSE QUEST';
-    document.getElementById('questScenarioTitle').innerText = title.toUpperCase();
     this.renderQuestItems();
-    this.updateQuestProgress();
-    this.navTo('screen-quest-tracker');
+    this.navTo('screen-quest-tracker', 'Quest Log');
   },
 
   renderQuestItems() {
-    if (!activeAiSimulationData || !activeAiSimulationData.quests) return;
-    const pillars = ['treasury', 'skills', 'bureaucracy', 'mana'];
+    const defaultQuests = {
+      treasury: [
+        { id: 'q1', text: 'Seed ₱120k Emergency Buffer into Digital High-Yield Bank (6.5% p.a.)' },
+        { id: 'q2', text: 'Initiate Pag-IBIG MP2 Government Dividend Compounding (Target ₱500k by 2028)' }
+      ],
+      skills: [
+        { id: 'q3', text: 'Integrate Generative AI LLM Agents into proposal & sprint automation workflows' },
+        { id: 'q4', text: 'Acquire Arcane Cloud & Cybersecurity Practitioner Certification' }
+      ],
+      bureaucracy: [
+        { id: 'q5', text: 'Register with BIR Form 1901 under 8% Gross Flat Rate Income Tax Regime' },
+        { id: 'q6', text: 'Automate Quarterly 1701Q Tax Declarations to prevent audit curveballs' }
+      ],
+      mana: [
+        { id: 'q7', text: 'Eliminate daily 3.5h EDSA commute by enforcing asynchronous WFH contract terms' },
+        { id: 'q8', text: 'Lock Comprehensive Family HMO Shield with ₱200,000 MBL Coverage' }
+      ]
+    };
 
-    pillars.forEach(p => {
-      const container = document.getElementById(`category-${p}`);
+    const currentFork = FORK_TIMELINES[activeForkIndex] || FORK_TIMELINES[0];
+    const quests = (currentFork && currentFork.quests) ? currentFork.quests : defaultQuests;
+
+    ['treasury', 'skills', 'bureaucracy', 'mana'].forEach(cat => {
+      const container = document.getElementById(`category-${cat}`);
       if (!container) return;
       container.innerHTML = '';
 
-      const quests = activeAiSimulationData.quests[p] || [];
-      quests.forEach(q => {
+      quests[cat].forEach(q => {
         const isDone = completedQuests.has(q.id);
         const item = document.createElement('div');
-        item.className = `p-3 border-2 border-slate-800 rounded flex items-start gap-3 cursor-pointer select-none transition-all ${
-          isDone ? 'bg-emerald-950/40 border-emerald-500/80 text-emerald-300' : 'bg-dungeon-950 hover:border-slate-600 text-slate-200'
+        item.className = `p-2.5 border text-xs font-mono flex items-start gap-2.5 cursor-pointer select-none transition-all ${
+          isDone ? 'bg-emerald-950/40 border-emerald-500/80 text-emerald-300' : 'bg-dungeon-950 border-slate-800 hover:border-slate-600 text-slate-200'
         }`;
         item.onclick = () => app.toggleQuest(q.id);
         item.innerHTML = `
-          <div class="mt-0.5 w-5 h-5 border-2 ${isDone ? 'border-emerald-400 bg-emerald-500 text-black' : 'border-slate-600 bg-dungeon-900'} flex items-center justify-center font-bold text-xs">
+          <div class="w-4 h-4 mt-0.5 border ${isDone ? 'border-emerald-400 bg-emerald-500 text-slate-950 font-bold' : 'border-slate-600 bg-dungeon-900'} flex items-center justify-center text-[10px]">
             ${isDone ? '✓' : ''}
           </div>
-          <div class="flex-1 text-xs font-mono leading-snug ${isDone ? 'line-through opacity-80' : ''}">
-            ${q.text}
-          </div>
+          <span class="${isDone ? 'line-through opacity-75' : ''}">${q.text}</span>
         `;
         container.appendChild(item);
       });
     });
-  },
 
-  toggleQuest(questId) {
-    if (completedQuests.has(questId)) {
-      completedQuests.delete(questId);
-      soundEngine.playBlip();
-    } else {
-      completedQuests.add(questId);
-      soundEngine.playPowerup();
-      if (typeof confetti === 'function') {
-        confetti({
-          particleCount: 50,
-          spread: 60,
-          origin: { y: 0.6 },
-          colors: ['#fbbf24', '#38bdf8', '#10b981', '#f43f5e']
-        });
-      }
-    }
-    this.renderQuestItems();
     this.updateQuestProgress();
   },
 
+  async toggleQuest(id) {
+    const completed = !completedQuests.has(id);
+    if (completedQuests.has(id)) {
+      completedQuests.delete(id);
+      soundEngine.playBlip();
+    } else {
+      completedQuests.add(id);
+      soundEngine.playPowerup();
+      if (typeof confetti === 'function') {
+        confetti({ particleCount: 40, spread: 50, origin: { y: 0.6 } });
+      }
+    }
+    if (currentUser.isLoggedIn) {
+      await firebaseService.saveQuestLog(currentUser.uid, id, completed);
+    }
+    this.renderQuestItems();
+  },
+
   updateQuestProgress() {
-    if (!activeAiSimulationData || !activeAiSimulationData.quests) return;
-    let total = 0;
-    let done = 0;
-
-    Object.values(activeAiSimulationData.quests).forEach(list => {
-      list.forEach(q => {
-        total++;
-        if (completedQuests.has(q.id)) done++;
-      });
-    });
-
-    document.getElementById('questCompletedCount').innerText = done;
-    document.getElementById('questTotalCount').innerText = total;
-    const pct = total > 0 ? (done / total) * 100 : 0;
-    document.getElementById('questProgressBar').style.width = `${pct}%`;
+    const done = completedQuests.size;
+    const total = 8;
+    const cEl = document.getElementById('questCompletedCount');
+    const bar = document.getElementById('questProgressBar');
+    if (cEl) cEl.innerText = done;
+    if (bar) bar.style.width = `${(done / total) * 100}%`;
   },
 
   exportQuestScroll() {
     soundEngine.playLevelUp();
-    const title = activeAiSimulationData ? activeAiSimulationData.scenarioName : 'AI ACTION DECREE';
-    document.getElementById('scrollHeroTitle').innerText = `HERO ACTION DECREE: ${title.toUpperCase()}`;
-    document.getElementById('scrollDate').innerText = new Date().toLocaleDateString('en-PH', { dateStyle: 'long' });
-
+    const modal = document.getElementById('questScrollModal');
     const body = document.getElementById('scrollContentBody');
-    let questListHtml = '';
+    const headerTitle = document.getElementById('scrollHeroTitle');
 
-    if (activeAiSimulationData && activeAiSimulationData.quests) {
-      Object.entries(activeAiSimulationData.quests).forEach(([cat, list]) => {
-        questListHtml += `<div class="mt-3"><span class="font-bold text-rpg-gold uppercase text-[11px] font-pixel">[ ${cat.toUpperCase()} PILLAR ]</span><ul class="list-none pl-2 mt-1 space-y-1">`;
-        list.forEach(q => {
-          const checked = completedQuests.has(q.id) ? '✓' : ' ';
-          questListHtml += `<li class="${completedQuests.has(q.id) ? 'text-emerald-400' : 'text-slate-300'}">[${checked}] ${q.text}</li>`;
-        });
-        questListHtml += `</ul></div>`;
-      });
+    if (headerTitle) {
+      headerTitle.innerText = currentUser.isLoggedIn
+        ? `OFFICIAL HERO DECREE: ${currentUser.displayName.toUpperCase()}`
+        : `HERO ACTION DECREE: GUEST SIMULATION`;
     }
 
-    body.innerHTML = `
-      <div class="bg-dungeon-950 p-4 border-2 border-slate-800 rounded">
-        <div class="grid grid-cols-2 gap-2 mb-3 text-xs">
-          <p><strong>HERO:</strong> ${hero.className} (LVL ${hero.age})</p>
-          <p><strong>ZONE:</strong> ${hero.location}</p>
-          <p><strong>INCOME:</strong> ₱${hero.income.toLocaleString()}/mo</p>
-          <p><strong>EQUALIZERS:</strong> AI (${hero.aiLeverage}) + Network (${hero.socialCapital})</p>
+    if (body) {
+      const sealBadge = currentUser.isLoggedIn ? `
+        <div class="bg-amber-950/40 border border-rpg-gold p-2 text-center text-rpg-gold font-bold text-xs mb-2">
+          ★ OFFICIAL SEAL: ${currentUser.verifiedSealNumber} // GOOGLE VERIFIED HERO ★
         </div>
-        <div class="border-t border-slate-800 pt-3">
-          ${questListHtml}
+      ` : `
+        <div class="bg-rose-950/40 border border-rose-500 p-2 text-center text-rose-400 font-bold text-xs mb-2">
+          ⚠ UNVERIFIED GUEST SIMULATION // LOCAL CACHE ONLY (Sign in to issue official seal)
         </div>
-      </div>
-    `;
+      `;
 
-    document.getElementById('questScrollModal').classList.remove('hidden');
+      const currentFork = FORK_TIMELINES[activeForkIndex] || FORK_TIMELINES[0];
+      const target2030 = currentFork.years['2030'] ? `₱${(currentFork.years['2030'].cumulativeSavings / 1000000).toFixed(2)}M` : '₱3.85M';
+      const questList = currentFork.quests ? [
+        ...(currentFork.quests.treasury || []).map(q => q.text),
+        ...(currentFork.quests.skills || []).map(q => q.text),
+        ...(currentFork.quests.bureaucracy || []).map(q => q.text),
+        ...(currentFork.quests.mana || []).map(q => q.text)
+      ] : [
+        'Seed ₱120k Emergency Buffer into Digital High-Yield Bank (6.5% p.a.)',
+        'Initiate Pag-IBIG MP2 Government Dividend Compounding (Target ₱500k by 2028)',
+        'Integrate Generative AI LLM Agents into proposal & sprint automation workflows',
+        'Register under BIR 8% Gross Flat Rate Income Tax Regime',
+        'Lock Comprehensive Family HMO Shield with ₱200,000 MBL Coverage',
+        'Eliminate daily commute with asynchronous remote contract terms'
+      ];
+
+      body.innerHTML = `
+        ${sealBadge}
+        <div class="bg-dungeon-950 p-4 border border-slate-800 space-y-3 font-mono text-xs">
+          <div class="grid grid-cols-2 gap-2 text-slate-400 border-b border-slate-800 pb-2">
+            <div>HERO: <strong class="text-white">${currentUser.isLoggedIn ? currentUser.displayName : hero.className}</strong></div>
+            <div>STATUS: <strong class="text-rpg-gold">BIR 8% FLAT TAX ACTIVE</strong></div>
+            <div>ZONE: <strong class="text-white">${hero.location}</strong></div>
+            <div>TARGET 2030: <strong class="text-rpg-mana">${target2030} WEALTH</strong></div>
+          </div>
+          <div>
+            <div class="text-rpg-gold font-bold uppercase text-[10px] mb-1">■ 8-POINT PARALLEL ACTION DECREE:</div>
+            <ul class="space-y-1 text-slate-300 text-[11px] list-disc pl-4">
+              ${questList.map(q => `<li>${q}</li>`).join('')}
+            </ul>
+          </div>
+        </div>
+      `;
+    }
+    if (modal) modal.classList.remove('hidden');
   },
 
   closeQuestScrollModal() {
     soundEngine.playBlip();
-    document.getElementById('questScrollModal').classList.add('hidden');
+    const modal = document.getElementById('questScrollModal');
+    if (modal) modal.classList.add('hidden');
   },
 
   copyScrollText() {
@@ -2441,53 +2368,129 @@ Return ONLY the raw JSON object, without markdown formatting.`;
         setTimeout(() => { btn.innerHTML = orig; }, 2000);
       }
     });
+  },
+
+  clearAppData() {
+    soundEngine.playBlip();
+    if (confirm('Clear local cache and reset simulation states?')) {
+      localStorage.removeItem('lifesim_whatif_vault');
+      localStorage.removeItem('lifesim_auth_user');
+      whatIfVault = [];
+      location.reload();
+    }
   }
 };
-window.app = app;
 
-// Global Shortcuts (Gemini Admin Modal & Archetype Keypad 1-4 / Enter)
+// --- 7. KEYBOARD SHORTCUTS CONTROLLER ---
 document.addEventListener('keydown', (e) => {
-  // Admin Gemini API Key Modal Shortcut (Ctrl + Shift + 1)
+  const tag = e.target.tagName.toLowerCase();
+  if (tag === 'input' || tag === 'textarea' || tag === 'select') {
+    if (e.ctrlKey && e.shiftKey && (e.key === '1' || e.key === '!' || e.code === 'Digit1')) {
+      e.preventDefault();
+      app.openAdminModal();
+    }
+    return;
+  }
+
+  // Hotkey: Ctrl + Shift + 1 for Admin Modal
   if (e.ctrlKey && e.shiftKey && (e.key === '1' || e.key === '!' || e.code === 'Digit1')) {
     e.preventDefault();
     app.openAdminModal();
     return;
   }
 
-  // Ignore single-key shortcuts when typing in inputs/textareas/selects
-  const activeTag = document.activeElement ? document.activeElement.tagName.toLowerCase() : '';
-  if (activeTag === 'input' || activeTag === 'textarea' || activeTag === 'select') {
-    return;
+  const classScreen = document.getElementById('screen-class-select');
+  const doorsScreen = document.getElementById('screen-hall-of-doors');
+
+  // Hotkeys on Hall of Doors
+  if (doorsScreen && !doorsScreen.classList.contains('hidden')) {
+    if (e.key === '1') {
+      e.preventDefault();
+      app.enterPortal('tech');
+      return;
+    } else if (e.key === '2') {
+      e.preventDefault();
+      app.enterPortal('nomad');
+      return;
+    } else if (e.key === '3') {
+      e.preventDefault();
+      app.openCustomModal();
+      return;
+    }
   }
 
-  // Archetype Select Screen Keypad Shortcuts (1, 2, 3, 4 and Enter)
-  const classSelectScreen = document.getElementById('screen-class-select');
-  if (classSelectScreen && !classSelectScreen.classList.contains('hidden')) {
-    if (['1', '2', '3', '4'].includes(e.key)) {
+  // Hotkey: 1, 2, 3, 4 Direct Archetype Select
+  if (classScreen && !classScreen.classList.contains('hidden')) {
+    if (e.key === '1') {
       e.preventDefault();
-      app.selectClassByKey(parseInt(e.key));
-    } else if (e.key === 'Enter') {
+      app.selectClass('bpo');
+    } else if (e.key === '2') {
       e.preventDefault();
-      app.proceedToCalibration();
+      app.selectClass('freelancer');
+    } else if (e.key === '3') {
+      e.preventDefault();
+      app.selectClass('freshgrad');
+    } else if (e.key === '4' || e.key === 'c' || e.key === 'C') {
+      e.preventDefault();
+      app.selectClass('custom');
+      app.navTo('screen-character-sheet', 'Calibration');
+    }
+  }
+
+  // Hotkey: Enter to calibrate / proceed
+  if (e.key === 'Enter') {
+    const classScreen = document.getElementById('screen-class-select');
+    const sheetScreen = document.getElementById('screen-character-sheet');
+    if (classScreen && !classScreen.classList.contains('hidden')) {
+      e.preventDefault();
+      app.navTo('screen-character-sheet', 'Calibration');
+    } else if (sheetScreen && !sheetScreen.classList.contains('hidden')) {
+      e.preventDefault();
+      app.saveCharacterSheet();
+    }
+  }
+
+  // Hotkey: Escape for Vault Modal
+  if (e.key === 'Escape') {
+    e.preventDefault();
+    const vaultModal = document.getElementById('whatIfVaultModal');
+    if (vaultModal && !vaultModal.classList.contains('hidden')) {
+      app.closeWhatIfVaultModal();
+    } else {
+      app.openWhatIfVaultModal();
+    }
+  }
+
+  // Hotkey: B for Theme Toggle
+  if (e.key === 'b' || e.key === 'B') {
+    e.preventDefault();
+    app.toggleTheme();
+  }
+
+  // Hotkey: Space for advancing to Quest Log
+  if (e.key === ' ') {
+    const curActive = document.querySelector('.screen-view.active');
+    if (curActive && curActive.id === 'screen-dashboard') {
+      e.preventDefault();
+      app.navTo('screen-quest-tracker', 'Quest Log');
     }
   }
 });
 
-// Initial Console Announcement, What-If Vault Hydration & Archetype Loading
-document.addEventListener('DOMContentLoaded', async () => {
+// --- 8. INITIAL HYDRATION & BOOTSTRAP ---
+document.addEventListener('DOMContentLoaded', () => {
   try {
     const saved = localStorage.getItem('lifesim_whatif_vault');
-    if (saved) {
-      whatIfVault = JSON.parse(saved);
-      if (whatIfVault.length > 0) {
-        activeWhatIfId = whatIfVault[0].id;
-        activeAiSimulationData = whatIfVault[0];
-      }
-    }
+    if (saved) whatIfVault = JSON.parse(saved);
   } catch (e) {
     whatIfVault = [];
   }
-  app.renderWhatIfSwitcher();
-  await app.loadArchetypes();
-  console.log('🚀 LifeSim.ai Multiverse Engine Loaded with Persistent What-If Vault & Archetype Config!');
+  if (typeof firebaseService !== 'undefined') {
+    firebaseService.init();
+  }
+  app.initTheme();
+  app.initAuth();
+  app.selectClass('bpo');
+  app.renderVaultModal();
+  console.log('🚀 LifeSim.ai Multiverse Engine V2.4_PH Active with Firebase Auth!');
 });

@@ -1,105 +1,630 @@
 /* ========================================================================= */
-/* LIFESIM.AI - RETRO RPG MEETS NEO-BRUTALISM STYLESHEET                     */
+/* LIFESIM.AI - MULTIVERSE ENGINE DUAL THEME STYLESHEET (LIGHT & DARK)       */
+/* Default: Clean Neo-Brutalist Light Mode | Dark Mode: Cyber RPG Void       */
 /* ========================================================================= */
+
+/* --- 1. THEME DESIGN TOKENS --- */
+:root {
+  /* LIGHT THEME (DEFAULT) */
+  --bg-space: #f8fafc;
+  --bg-card: #ffffff;
+  --bg-card-hover: #f1f5f9;
+  --bg-panel: #ffffff;
+  --bg-panel-alt: #f1f5f9;
+  --border-subtle: #cbd5e1;
+  --border-dark: #0f172a;
+  --text-main: #0f172a;
+  --text-muted: #334155;
+  --text-subtle: #475569;
+  
+  --gold-primary: #b45309;
+  --gold-glow: rgba(180, 83, 9, 0.15);
+  --cyan-primary: #0369a1;
+  --cyan-glow: rgba(3, 105, 161, 0.15);
+  --emerald-primary: #047857;
+  --rose-primary: #be123c;
+  --purple-primary: #6d28d9;
+  
+  --shadow-color: #0f172a;
+  --grid-line: rgba(15, 23, 42, 0.05);
+}
+
+html.dark {
+  /* DARK THEME (CYBER RPG VOID) */
+  --bg-space: #060911;
+  --bg-card: #0a0f1d;
+  --bg-card-hover: #0e1526;
+  --bg-panel: #141d33;
+  --bg-panel-alt: #1a243d;
+  --border-subtle: #1e293b;
+  --border-dark: #020617;
+  --text-main: #f8fafc;
+  --text-muted: #94a3b8;
+  --text-subtle: #64748b;
+  
+  --gold-primary: #fbbf24;
+  --gold-glow: rgba(251, 191, 36, 0.25);
+  --cyan-primary: #38bdf8;
+  --cyan-glow: rgba(56, 189, 248, 0.2);
+  --emerald-primary: #10b981;
+  --rose-primary: #f43f5e;
+  --purple-primary: #a855f7;
+  
+  --shadow-color: #020617;
+  --grid-line: rgba(255, 255, 255, 0.03);
+}
+
+/* Base Body Transition */
+body {
+  background-color: var(--bg-space);
+  color: var(--text-main);
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
 
 /* Custom Scrollbars */
 ::-webkit-scrollbar {
-  width: 10px;
-  height: 10px;
+  width: 7px;
+  height: 7px;
 }
 ::-webkit-scrollbar-track {
-  background: #0a0f1d;
-  border-left: 2px solid #141d33;
+  background: var(--bg-space);
 }
 ::-webkit-scrollbar-thumb {
-  background: #2d3e66;
-  border: 2px solid #0a0f1d;
+  background: var(--border-subtle);
+  border-radius: 2px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #38bdf8;
+  background: var(--cyan-primary);
 }
 
-/* CRT Scanlines Overlay */
-.crt-overlay {
-  background: linear-gradient(
-    rgba(18, 16, 16, 0) 50%, 
-    rgba(0, 0, 0, 0.25) 50%
-  ), linear-gradient(
-    90deg,
-    rgba(255, 0, 0, 0.03),
-    rgba(0, 255, 0, 0.01),
-    rgba(0, 0, 255, 0.03)
-  );
-  background-size: 100% 3px, 6px 100%;
-  pointer-events: none;
+/* Clean Background Grid */
+.dungeon-grid {
+  background-color: var(--bg-space);
+  background-size: 36px 36px;
+  background-image: 
+    linear-gradient(to right, var(--grid-line) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--grid-line) 1px, transparent 1px);
 }
 
-/* Pixelated borders & Retro Frame accents */
-.rpg-border {
-  border: 4px solid #020617;
-}
-.rpg-border-inner {
-  border: 2px solid #1e293b;
-}
-
-/* Interactive Neo-Brutalist Click Push */
+/* Streamlined Neo-Brutalist Buttons */
 .btn-brutal {
-  transition: all 0.1s ease-in-out;
+  transition: all 0.12s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 2px 2px 0px 0px var(--border-dark);
 }
-.btn-brutal:hover {
-  transform: translate(-2px, -2px);
+.btn-brutal:hover:not(:disabled) {
+  transform: translate(-1px, -1px);
+  box-shadow: 3px 3px 0px 0px var(--border-dark);
 }
-.btn-brutal:active {
-  transform: translate(3px, 3px);
-  box-shadow: 1px 1px 0px 0px #020617 !important;
+.btn-brutal:active:not(:disabled) {
+  transform: translate(1px, 1px);
+  box-shadow: 0px 0px 0px 0px var(--border-dark);
 }
 
-/* Range slider custom styling */
+/* Top Navigation Tabs */
+.nav-tab-link {
+  position: relative;
+  transition: all 0.15s ease;
+  cursor: pointer;
+  color: var(--text-muted);
+}
+.nav-tab-link:hover {
+  color: var(--text-main);
+}
+.nav-tab-link.active {
+  color: var(--gold-primary) !important;
+  font-weight: 700;
+}
+.nav-tab-link.active::after {
+  content: '';
+  position: absolute;
+  bottom: -4px;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background-color: var(--gold-primary);
+}
+
+/* Clean Segmented Buttons */
+.matrix-btn {
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-muted);
+  transition: all 0.12s ease;
+  cursor: pointer;
+  user-select: none;
+}
+.matrix-btn:hover {
+  border-color: var(--cyan-primary);
+  color: var(--text-main);
+}
+.matrix-btn.active-yellow {
+  background: var(--gold-primary) !important;
+  border-color: var(--gold-primary) !important;
+  color: #ffffff !important;
+  font-weight: 800;
+  box-shadow: 0 0 6px var(--gold-glow);
+}
+html.dark .matrix-btn.active-yellow {
+  color: #020617 !important;
+}
+.matrix-btn.active-cyan {
+  background: var(--cyan-primary) !important;
+  border-color: var(--cyan-primary) !important;
+  color: #ffffff !important;
+  font-weight: 700;
+  box-shadow: 0 0 6px var(--cyan-glow);
+}
+.matrix-btn.active-gold {
+  background: var(--gold-primary) !important;
+  border-color: var(--gold-primary) !important;
+  color: #ffffff !important;
+  font-weight: 700;
+}
+
+/* Clean Selectable Cards */
+.selectable-card {
+  background: var(--bg-card);
+  border: 1.5px solid var(--border-subtle);
+  transition: all 0.15s ease;
+  cursor: pointer;
+}
+.selectable-card:hover {
+  border-color: var(--cyan-primary);
+  background: var(--bg-card-hover);
+}
+.selectable-card.selected-gold {
+  background: var(--bg-card-hover);
+  border: 2px solid var(--gold-primary);
+  box-shadow: 0 0 8px var(--gold-glow);
+}
+
+/* Clean Class & Portal Cards */
+.class-card {
+  background: var(--bg-card);
+  border: 1.5px solid var(--border-subtle);
+  transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.class-card:hover {
+  border-color: var(--cyan-primary);
+  transform: translateY(-2px);
+}
+
+/* Range Slider Retro Styling */
 input[type=range].retro-slider {
   -webkit-appearance: none;
-  background: #0a0f1d;
-  height: 14px;
-  border: 3px solid #020617;
-  box-shadow: inset 2px 2px 0px #000;
+  background: var(--bg-card-hover);
+  height: 6px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 2px;
 }
 input[type=range].retro-slider::-webkit-slider-thumb {
   -webkit-appearance: none;
-  height: 28px;
-  width: 28px;
-  background: #fbbf24;
-  border: 3px solid #020617;
-  box-shadow: 3px 3px 0px #020617;
+  height: 18px;
+  width: 18px;
+  background: var(--gold-primary);
+  border: 2px solid var(--border-dark);
   cursor: pointer;
-  border-radius: 0px;
+  border-radius: 2px;
 }
 input[type=range].retro-slider::-moz-range-thumb {
-  height: 28px;
-  width: 28px;
-  background: #fbbf24;
-  border: 3px solid #020617;
-  box-shadow: 3px 3px 0px #020617;
+  height: 18px;
+  width: 18px;
+  background: var(--gold-primary);
+  border: 2px solid var(--border-dark);
   cursor: pointer;
-  border-radius: 0px;
+  border-radius: 2px;
 }
 
-/* Custom RPG Door Visual Assets with CSS */
-.door-wood-pattern {
-  background-color: #1e1b4b;
-  background-image: repeating-linear-gradient(0deg, #1e1b4b, #1e1b4b 16px, #17143a 16px, #17143a 32px);
+/* Stat Progress Gauge Bar */
+.stat-bar-track {
+  width: 100%;
+  background-color: var(--bg-card-hover);
+  height: 6px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 1px;
+  overflow: hidden;
 }
-.door-stone-pattern {
-  background-color: #064e3b;
-  background-image: repeating-linear-gradient(0deg, #064e3b, #064e3b 16px, #043d2e 16px, #043d2e 32px);
+.stat-bar-fill-yellow {
+  height: 100%;
+  background: var(--gold-primary);
 }
-.door-void-pattern {
-  background-color: #3b0764;
-  background-image: repeating-linear-gradient(0deg, #3b0764, #3b0764 16px, #2e054f 16px, #2e054f 32px);
+.stat-bar-fill-cyan {
+  height: 100%;
+  background: var(--cyan-primary);
+}
+.stat-bar-fill-rose {
+  height: 100%;
+  background: var(--rose-primary);
+}
+.stat-bar-fill-purple {
+  height: 100%;
+  background: var(--purple-primary);
+}
+.stat-bar-fill-emerald {
+  height: 100%;
+  background: var(--emerald-primary);
+}
+.stat-bar-fill-dim {
+  height: 100%;
+  background: var(--border-subtle);
 }
 
-/* Subtle background dungeon grid */
-.dungeon-grid {
-  background-size: 32px 32px;
-  background-image: 
-    linear-gradient(to right, rgba(255, 255, 255, 0.03) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+/* Keypad Shortcut Badge */
+.keypad-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  width: auto;
+  padding: 0 5px;
+  height: 20px;
+  background: var(--bg-card);
+  border: 1px solid var(--cyan-primary);
+  color: var(--cyan-primary);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  font-weight: 700;
+  border-radius: 2px;
+  cursor: pointer;
+  transition: all 0.12s ease;
+  white-space: nowrap;
+}
+.keypad-badge:hover {
+  border-color: var(--gold-primary);
+  color: var(--gold-primary);
+  background: var(--bg-card-hover);
+}
+
+/* Pillar Tab Navigation Buttons */
+.pillar-tab-btn {
+  transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+  user-select: none;
+}
+.pillar-tab-btn.active-pillar {
+  background: var(--bg-card-hover) !important;
+  border-color: var(--gold-primary) !important;
+  color: var(--gold-primary) !important;
+  box-shadow: 0 0 8px var(--gold-glow);
+}
+.pillar-tab-btn:hover:not(.active-pillar) {
+  border-color: var(--cyan-primary);
+  color: var(--text-main);
+}
+
+/* ========================================================================= */
+/* --- 2. LIGHT MODE SPECIFIC HIGH-CONTRAST OVERRIDES ---                    */
+/* ========================================================================= */
+
+html:not(.dark) {
+  /* High contrast text overrides */
+  color: #0f172a;
+}
+
+/* Brand & Base Text Overrides */
+html:not(.dark) .text-white {
+  color: #0f172a !important;
+}
+
+html:not(.dark) .text-slate-100,
+html:not(.dark) .text-slate-200 {
+  color: #1e293b !important;
+}
+
+html:not(.dark) .text-slate-300 {
+  color: #334155 !important;
+}
+
+html:not(.dark) .text-slate-400 {
+  color: #475569 !important;
+}
+
+html:not(.dark) .text-slate-500 {
+  color: #64748b !important;
+}
+
+html:not(.dark) .text-slate-600 {
+  color: #475569 !important;
+}
+
+/* High contrast colored texts */
+html:not(.dark) .text-rpg-gold,
+html:not(.dark) .text-amber-400,
+html:not(.dark) .text-amber-500 {
+  color: #b45309 !important;
+  font-weight: 700;
+}
+
+html:not(.dark) .text-rpg-mana,
+html:not(.dark) .text-sky-400,
+html:not(.dark) .text-cyan-400 {
+  color: #0369a1 !important;
+  font-weight: 700;
+}
+
+html:not(.dark) .text-rpg-emerald,
+html:not(.dark) .text-emerald-400,
+html:not(.dark) .text-emerald-500 {
+  color: #047857 !important;
+  font-weight: 700;
+}
+
+html:not(.dark) .text-rpg-void,
+html:not(.dark) .text-purple-400,
+html:not(.dark) .text-purple-300,
+html:not(.dark) .text-purple-200 {
+  color: #6d28d9 !important;
+  font-weight: 700;
+}
+
+html:not(.dark) .text-rpg-rose,
+html:not(.dark) .text-rose-400,
+html:not(.dark) .text-rose-500 {
+  color: #be123c !important;
+  font-weight: 700;
+}
+
+/* Backgrounds & Panels */
+html:not(.dark) .bg-dungeon-950,
+html:not(.dark) .bg-slate-950 {
+  background-color: #f8fafc !important;
+}
+
+html:not(.dark) .bg-dungeon-900,
+html:not(.dark) .bg-slate-900 {
+  background-color: #ffffff !important;
+}
+
+html:not(.dark) .bg-dungeon-850,
+html:not(.dark) .bg-slate-850 {
+  background-color: #f1f5f9 !important;
+}
+
+html:not(.dark) .bg-dungeon-800,
+html:not(.dark) .bg-slate-800 {
+  background-color: #e2e8f0 !important;
+}
+
+html:not(.dark) .bg-dungeon-950\/70,
+html:not(.dark) .bg-dungeon-950\/60,
+html:not(.dark) .bg-dungeon-900\/70 {
+  background-color: #f1f5f9 !important;
+}
+
+/* Borders */
+html:not(.dark) .border-slate-800,
+html:not(.dark) .border-slate-900,
+html:not(.dark) .border-slate-850,
+html:not(.dark) .border-slate-750,
+html:not(.dark) .border-slate-700 {
+  border-color: #cbd5e1 !important;
+}
+
+/* Solid Action & Stepper Buttons in Light Mode */
+/* Sky / Cyan Buttons (Next buttons, AI Analyze, Re-Synthesize) */
+html:not(.dark) .bg-sky-950,
+html:not(.dark) .bg-sky-900 {
+  background-color: #0284c7 !important;
+  color: #ffffff !important;
+  border-color: #0369a1 !important;
+}
+html:not(.dark) .bg-sky-950:hover,
+html:not(.dark) .bg-sky-900:hover {
+  background-color: #0369a1 !important;
+  color: #ffffff !important;
+}
+html:not(.dark) .bg-sky-950 .text-rpg-mana,
+html:not(.dark) .bg-sky-900 .text-rpg-mana,
+html:not(.dark) .bg-sky-950 span,
+html:not(.dark) .bg-sky-900 span,
+html:not(.dark) .bg-sky-950 i,
+html:not(.dark) .bg-sky-900 i {
+  color: #ffffff !important;
+}
+
+/* Purple Action Buttons & Custom Builder */
+html:not(.dark) .bg-purple-950,
+html:not(.dark) .bg-purple-900 {
+  background-color: #f3e8ff !important;
+  color: #6d28d9 !important;
+  border-color: #7c3aed !important;
+}
+html:not(.dark) .bg-purple-950:hover,
+html:not(.dark) .bg-purple-900:hover {
+  background-color: #ede9fe !important;
+  color: #581c87 !important;
+}
+html:not(.dark) .bg-purple-950 .text-purple-300,
+html:not(.dark) .bg-purple-900 .text-purple-300,
+html:not(.dark) .bg-purple-950 span,
+html:not(.dark) .bg-purple-900 span,
+html:not(.dark) .bg-purple-950 i,
+html:not(.dark) .bg-purple-900 i {
+  color: #6d28d9 !important;
+}
+
+/* Emerald Action Buttons */
+html:not(.dark) .bg-emerald-950,
+html:not(.dark) .bg-emerald-900 {
+  background-color: #059669 !important;
+  color: #ffffff !important;
+  border-color: #047857 !important;
+}
+html:not(.dark) .bg-emerald-950:hover,
+html:not(.dark) .bg-emerald-900:hover {
+  background-color: #047857 !important;
+  color: #ffffff !important;
+}
+html:not(.dark) .bg-emerald-950 span,
+html:not(.dark) .bg-emerald-900 span,
+html:not(.dark) .bg-emerald-950 i,
+html:not(.dark) .bg-emerald-900 i {
+  color: #ffffff !important;
+}
+
+/* Rose Action Buttons */
+html:not(.dark) .bg-rose-950,
+html:not(.dark) .bg-rose-900 {
+  background-color: #e11d48 !important;
+  color: #ffffff !important;
+  border-color: #be123c !important;
+}
+html:not(.dark) .bg-rose-950:hover,
+html:not(.dark) .bg-rose-900:hover {
+  background-color: #be123c !important;
+  color: #ffffff !important;
+}
+
+/* Keypad Badges in Light Mode */
+html:not(.dark) .keypad-badge {
+  background-color: #ffffff;
+  border-color: #0369a1;
+  color: #0369a1;
+}
+html:not(.dark) .keypad-badge.bg-purple-900 {
+  background-color: #f3e8ff !important;
+  border-color: #a855f7 !important;
+  color: #6d28d9 !important;
+}
+
+/* Colored Badge Chips & Translucent Tints in Light Mode */
+html:not(.dark) .bg-amber-950\/30,
+html:not(.dark) .bg-amber-950\/40,
+html:not(.dark) .bg-amber-950\/60,
+html:not(.dark) .bg-amber-900\/40,
+html:not(.dark) .bg-amber-900\/60 {
+  background-color: #fef3c7 !important;
+  color: #92400e !important;
+  border-color: #f59e0b !important;
+}
+
+html:not(.dark) .bg-sky-950\/30,
+html:not(.dark) .bg-sky-950\/40,
+html:not(.dark) .bg-sky-950\/60,
+html:not(.dark) .bg-sky-950\/80,
+html:not(.dark) .bg-sky-900\/40,
+html:not(.dark) .bg-sky-900\/60,
+html:not(.dark) .bg-sky-900\/80 {
+  background-color: #e0f2fe !important;
+  color: #075985 !important;
+  border-color: #38bdf8 !important;
+}
+
+html:not(.dark) .bg-emerald-950\/30,
+html:not(.dark) .bg-emerald-950\/40,
+html:not(.dark) .bg-emerald-950\/60,
+html:not(.dark) .bg-emerald-900\/40,
+html:not(.dark) .bg-emerald-900\/60 {
+  background-color: #d1fae5 !important;
+  color: #065f46 !important;
+  border-color: #34d399 !important;
+}
+
+html:not(.dark) .bg-purple-950\/20,
+html:not(.dark) .bg-purple-950\/30,
+html:not(.dark) .bg-purple-950\/40,
+html:not(.dark) .bg-purple-950\/60,
+html:not(.dark) .bg-purple-950\/70,
+html:not(.dark) .bg-purple-900\/40,
+html:not(.dark) .bg-purple-900\/60,
+html:not(.dark) .bg-purple-900\/80 {
+  background-color: #f5f3ff !important;
+  color: #581c87 !important;
+  border-color: #c084fc !important;
+}
+
+html:not(.dark) .bg-rose-950\/30,
+html:not(.dark) .bg-rose-950\/40,
+html:not(.dark) .bg-rose-950\/60,
+html:not(.dark) .bg-rose-900\/40,
+html:not(.dark) .bg-rose-900\/60 {
+  background-color: #ffe4e6 !important;
+  color: #9f1239 !important;
+  border-color: #fb7185 !important;
+}
+
+/* Callout Banners Gradient Fix for Light Mode */
+html:not(.dark) .bg-gradient-to-r.from-purple-950\/70,
+html:not(.dark) .bg-gradient-to-r.from-purple-950\/60 {
+  background-image: none !important;
+  background-color: #faf5ff !important;
+  border-color: #c084fc !important;
+}
+html:not(.dark) .bg-gradient-to-r.from-purple-950\/70 .text-white,
+html:not(.dark) .bg-gradient-to-r.from-purple-950\/60 .text-white {
+  color: #3b0764 !important;
+}
+html:not(.dark) .bg-gradient-to-r.from-purple-950\/70 .text-slate-300,
+html:not(.dark) .bg-gradient-to-r.from-purple-950\/60 .text-slate-300 {
+  color: #581c87 !important;
+}
+
+/* Form Controls & Inputs */
+html:not(.dark) input[type="text"],
+html:not(.dark) input[type="number"],
+html:not(.dark) input[type="email"],
+html:not(.dark) input[type="password"],
+html:not(.dark) select,
+html:not(.dark) textarea {
+  color: #0f172a !important;
+  background-color: #ffffff !important;
+  border: 1.5px solid #cbd5e1 !important;
+}
+
+html:not(.dark) input:focus,
+html:not(.dark) select:focus,
+html:not(.dark) textarea:focus {
+  background-color: #ffffff !important;
+  border-color: #b45309 !important;
+  outline: none !important;
+  box-shadow: 0 0 0 2px rgba(180, 83, 9, 0.2) !important;
+}
+
+html:not(.dark) ::placeholder {
+  color: #94a3b8 !important;
+}
+
+/* Dropdown Options */
+html:not(.dark) select option {
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+}
+
+/* Shadows */
+html:not(.dark) .shadow-brutal {
+  box-shadow: 3px 3px 0px 0px #0f172a !important;
+}
+
+html:not(.dark) .shadow-brutal-sm {
+  box-shadow: 2px 2px 0px 0px #0f172a !important;
+}
+
+html:not(.dark) .shadow-brutal-lg {
+  box-shadow: 5px 5px 0px 0px #0f172a !important;
+}
+
+html:not(.dark) .shadow-brutal-gold {
+  box-shadow: 3px 3px 0px 0px #b45309 !important;
+}
+
+html:not(.dark) .shadow-brutal-cyan {
+  box-shadow: 3px 3px 0px 0px #0369a1 !important;
+}
+
+html:not(.dark) .shadow-brutal-emerald {
+  box-shadow: 3px 3px 0px 0px #047857 !important;
+}
+
+html:not(.dark) .shadow-brutal-purple {
+  box-shadow: 3px 3px 0px 0px #6d28d9 !important;
+}
+
+html:not(.dark) .shadow-brutal-rose {
+  box-shadow: 3px 3px 0px 0px #be123c !important;
+}
+
+/* Modals */
+html:not(.dark) .fixed.inset-0.bg-black\/85,
+html:not(.dark) .fixed.inset-0.bg-black\/80 {
+  background-color: rgba(15, 23, 42, 0.65) !important;
+  backdrop-filter: blur(4px) !important;
 }
