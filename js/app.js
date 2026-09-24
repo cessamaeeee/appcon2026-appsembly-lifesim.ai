@@ -7,6 +7,7 @@ import { signInWithPopup, GoogleAuthProvider, createUserWithEmailAndPassword,
   signInWithEmailAndPassword, signOut, signInAnonymously } from "firebase/auth";
 import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
 import { calculateFallbackSimulation, sanitizeHeroState, SIMULATION_YEARS } from "./simulationEngine.js";
+import { ARCHETYPES, getArchetypes } from "./archetypeConfig.js";
 
 // --- 1. ZERO-DEPENDENCY 8-BIT SOUND SYNTHESIZER (Web Audio API) ---
 class RetroSoundEngine {
@@ -1067,6 +1068,13 @@ const app = {
       target.classList.remove('hidden');
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
+    if (screenId === 'screen-class-select') {
+      if (!this.archetypes || this.archetypes.length === 0) {
+        this.loadArchetypes();
+      } else {
+        this.renderArchetypeCards();
+      }
+    }
   },
 
   toggleCRT() {
@@ -1469,54 +1477,276 @@ const app = {
     }
   },
 
+  // Archetype Data State
+  archetypes: [],
+  selectedArchetypeId: 'corp_tank',
+
+  async loadArchetypes() {
+    try {
+      this.archetypes = await getArchetypes();
+    } catch (err) {
+      console.warn("Failed to load archetypes asynchronously, using fallback:", err);
+      this.archetypes = ARCHETYPES;
+    }
+    this.renderArchetypeCards();
+  },
+
+  renderArchetypeCards() {
+    const grid = document.getElementById('archetypeCardsGrid');
+    if (!grid) return;
+
+    const list = this.archetypes && this.archetypes.length > 0 ? this.archetypes : ARCHETYPES;
+
+    grid.innerHTML = list.map((arch, idx) => {
+      const isSelected = arch.id === this.selectedArchetypeId;
+      const keyNum = idx + 1;
+
+      // Color coding & formatting for 3 stat bars
+      const statBarsHtml = (arch.stats || []).map(stat => {
+        const pct = Math.min(100, Math.max(0, (stat.value / stat.max) * 100));
+        let barColor = 'bg-rpg-gold';
+        if (stat.color === 'rose' || stat.isNegative) {
+          barColor = 'bg-rose-500';
+        } else if (stat.color === 'mana') {
+          barColor = 'bg-sky-400';
+        } else if (stat.color === 'slate') {
+          barColor = 'bg-slate-500';
+        } else if (stat.color === 'gold') {
+          barColor = 'bg-rpg-gold';
+        }
+
+        const tagText = stat.tag ? ` <span class="text-[7px] text-slate-400 font-pixel">${stat.tag}</span>` : '';
+        const valueClass = stat.isNegative ? 'text-rose-400' : 'text-slate-200';
+
+        return `
+          <div>
+            <div class="flex justify-between items-center text-[8px] font-pixel mb-1">
+              <span class="text-slate-300 uppercase tracking-tight">${stat.label}</span>
+              <span class="${valueClass}">${stat.value} / ${stat.max}${tagText}</span>
+            </div>
+            <div class="w-full h-1.5 bg-slate-950 border border-slate-800 overflow-hidden">
+              <div class="h-full ${barColor} transition-all duration-300" style="width: ${pct}%"></div>
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      // Buffs & Debuffs badges
+      const buffsHtml = (arch.buffs || []).map(b => {
+        const text = typeof b === 'string' ? b : (b.text || '');
+        const isCyan = text.includes('USD ARBITRAGE') || text.includes('EQUITY');
+        const formatted = (text.startsWith('BUFF:') || text.startsWith('DEBUFF:') || text.includes('EQUITY')) 
+          ? text 
+          : `BUFF: ${text}`;
+        const borderClass = isCyan ? 'border-sky-400/80 text-sky-400' : 'border-rpg-gold/80 text-rpg-gold';
+        return `<span class="border ${borderClass} font-pixel text-[8px] px-1.5 py-0.5 whitespace-nowrap">${formatted}</span>`;
+      }).join('');
+
+      const debuffsHtml = (arch.debuffs || []).map(d => {
+        const text = typeof d === 'string' ? d : (d.text || '');
+        const isNeutral = text.includes('13TH MO');
+        const formatted = (text.startsWith('BUFF:') || text.startsWith('DEBUFF:') || text.includes('13TH MO')) 
+          ? text 
+          : `DEBUFF: ${text}`;
+        const borderClass = isNeutral ? 'border-slate-600 text-slate-400' : 'border-rose-500/80 text-rose-400';
+        return `<span class="border ${borderClass} font-pixel text-[8px] px-1.5 py-0.5 whitespace-nowrap">${formatted}</span>`;
+      }).join('');
+
+      // Financials layout
+      let financialsHtml = '';
+      if (arch.isSpecialFinancials) {
+        financialsHtml = `
+          <div class="grid grid-cols-2 gap-y-1 text-xs font-mono border-y border-slate-800/80 py-2.5 my-3">
+            <span class="text-slate-400 font-pixel text-[8px]">REVENUE:</span>
+            <span class="text-right text-slate-200 font-bold font-mono text-[11px]">${arch.revenueLabel || 'VARIABLE (MSME)'}</span>
+
+            <span class="text-slate-400 font-pixel text-[8px]">RUNWAY:</span>
+            <span class="text-right text-rpg-gold font-bold font-mono text-[11px]">${arch.runwayLabel || '₱350,000 (6.5 mos)'}</span>
+
+            <span class="text-slate-400 font-pixel text-[8px]">REGULATORY:</span>
+            <span class="text-right text-slate-300 font-mono text-[10px]">${arch.regulatoryLabel || 'SEC/BIR compliance'}</span>
+
+            <span class="text-slate-400 font-pixel text-[8px]">TEAM BURN:</span>
+            <span class="text-right text-slate-200 font-mono text-[10px]">${arch.teamBurnLabel || '₱45,000/mo OPEX'}</span>
+          </div>
+        `;
+      } else {
+        const earningColor = arch.id === 'agile_mage' ? 'text-sky-400' : 'text-rpg-gold';
+        const savingsColor = arch.id === 'novice_explorer' ? 'text-slate-200' : 'text-sky-400';
+        const commuteColor = arch.id === 'agile_mage' ? 'text-sky-400' : 'text-slate-200';
+
+        financialsHtml = `
+          <div class="grid grid-cols-2 gap-y-1 text-xs font-mono border-y border-slate-800/80 py-2.5 my-3">
+            <span class="text-slate-400 font-pixel text-[8px]">EARNING:</span>
+            <span class="text-right ${earningColor} font-bold font-mono text-[11px]">${arch.earningLabel || `₱${arch.earning.toLocaleString()}/mo`}</span>
+
+            <span class="text-slate-400 font-pixel text-[8px]">SAVINGS:</span>
+            <span class="text-right ${savingsColor} font-bold font-mono text-[11px]">${arch.savingsLabel || `₱${arch.savings.toLocaleString()}`}</span>
+
+            <span class="text-slate-400 font-pixel text-[8px]">COMMUTE:</span>
+            <span class="text-right ${commuteColor} font-mono text-[10px]">${arch.commuteLabel}</span>
+
+            <span class="text-slate-400 font-pixel text-[8px]">REMITTANCE:</span>
+            <span class="text-right text-slate-300 font-mono text-[10px]">${arch.remittanceLabel}</span>
+          </div>
+        `;
+      }
+
+      // Container styling
+      const cardContainerStyle = isSelected
+        ? 'border-4 border-rpg-gold bg-dungeon-800 shadow-brutal-gold'
+        : 'border-3 border-slate-800 hover:border-slate-600 bg-slate-950/90';
+
+      const statusBadge = isSelected
+        ? '<span class="font-pixel text-[9px] text-rpg-gold font-bold">[ACTIVE]</span>'
+        : '<span class="font-pixel text-[9px] text-slate-500">[STANDBY]</span>';
+
+      const actionButton = isSelected
+        ? `<button class="w-full py-2.5 bg-rpg-gold text-slate-950 font-bold border-2 border-slate-950 font-pixel text-[9px] flex items-center justify-center gap-1.5 shadow-brutal-sm cursor-default">
+             <i class="fa-solid fa-check"></i> SELECTED CLASS
+           </button>`
+        : `<button onclick="app.selectClass('${arch.id}')" class="w-full py-2.5 bg-slate-950 hover:bg-slate-900 text-sky-400 border-2 border-sky-500/70 hover:border-sky-400 font-pixel text-[9px] flex items-center justify-center gap-1.5 transition-all shadow-brutal-sm">
+             <i class="fa-solid fa-arrow-pointer"></i> SELECT ARCHETYPE
+           </button>`;
+
+      const recommendedBadgeHtml = arch.recommended
+        ? `<div class="absolute -top-3.5 right-4 bg-rpg-gold text-slate-950 px-2 py-0.5 font-pixel text-[8px] border-2 border-slate-950 shadow-brutal-sm font-bold uppercase tracking-wider">
+             ${arch.badgeText || '[RECOMMENDED TANK]'}
+           </div>`
+        : '';
+
+      return `
+        <div id="card-class-${arch.id}" class="class-card ${cardContainerStyle} relative p-4 flex flex-col justify-between transition-all cursor-pointer" onclick="app.selectClass('${arch.id}')">
+          ${recommendedBadgeHtml}
+          
+          <div>
+            <!-- Top Class Code + Active/Standby Indicator -->
+            <div class="flex items-center justify-between gap-2 mb-1.5">
+              <span class="font-pixel text-[9px] sm:text-[10px] text-sky-400 font-bold tracking-tight">
+                ${arch.classCode} // ${arch.archetype}
+              </span>
+              ${statusBadge}
+            </div>
+
+            <!-- Age & Location Subtitle -->
+            <div class="font-pixel text-[8px] text-slate-400 uppercase tracking-tight mb-1">
+              ${arch.ageRange} // ${arch.location}
+            </div>
+
+            <!-- Class Name Title -->
+            <h3 class="font-pixel text-xs sm:text-sm text-white tracking-wide mb-2 drop-shadow-[0_1px_0_#020617]">
+              ${arch.name}
+            </h3>
+
+            <!-- Financials Matrix -->
+            ${financialsHtml}
+
+            <!-- Buffs & Debuffs Badges -->
+            <div class="flex flex-wrap gap-1.5 my-3">
+              ${buffsHtml}
+              ${debuffsHtml}
+            </div>
+
+            <!-- 3 Stat Bars -->
+            <div class="space-y-2.5 mb-4">
+              ${statBarsHtml}
+            </div>
+          </div>
+
+          <!-- Bottom Action Button -->
+          <div class="pt-2">
+            ${actionButton}
+          </div>
+        </div>
+      `;
+    }).join('');
+  },
+
   selectClass(classKey) {
     soundEngine.playSelect();
-    document.querySelectorAll('.class-card').forEach(c => {
-      c.classList.remove('border-rpg-gold', 'bg-dungeon-800', 'shadow-brutal-gold');
-      c.classList.add('border-slate-950', 'bg-dungeon-900');
-    });
 
-    const selectedCard = document.getElementById(`card-class-${classKey}`);
-    if (selectedCard) {
-      selectedCard.classList.remove('border-slate-950', 'bg-dungeon-900');
-      selectedCard.classList.add('border-rpg-gold', 'bg-dungeon-800', 'shadow-brutal-gold');
+    // Map legacy alias to modern ID if applicable
+    const aliasMap = {
+      bpo: 'corp_tank',
+      freelancer: 'agile_mage',
+      freshgrad: 'novice_explorer',
+      custom: 'wildcard_rogue'
+    };
+    const resolvedId = aliasMap[classKey] || classKey;
+    this.selectedArchetypeId = resolvedId;
+
+    const list = this.archetypes && this.archetypes.length > 0 ? this.archetypes : ARCHETYPES;
+    const arch = list.find(a => a.id === resolvedId) || list[0];
+
+    // Populate hero state
+    hero.id = arch.id;
+    hero.className = arch.name;
+    hero.archetypeTitle = arch.archetype;
+    hero.income = arch.baseIncome || arch.earning || 45000;
+    hero.savings = arch.baseSavings || arch.savings || 120000;
+    hero.workSetup = arch.workSetup || 'On-Site';
+    hero.commuteHours = arch.commuteHours !== undefined ? arch.commuteHours : 3.5;
+    hero.guild = arch.guild || 'BPO';
+    hero.hmoShield = arch.hmoShield || 'Comprehensive';
+    hero.familySafetyNet = arch.familySafetyNet || 'SandwichGen';
+    hero.familyRemittance = arch.familyRemittance !== undefined ? arch.familyRemittance : 10000;
+    hero.aiLeverage = arch.aiLeverage || 'Traditional';
+    hero.socialCapital = arch.socialCapital || 'LoneWolf';
+    hero.learningVelocity = arch.learningVelocity || 'Steady';
+    hero.desireVector = arch.desireVector || 'DollarClients';
+    hero.riskStance = arch.riskStance || 'Paladin';
+
+    // Populate Character Sheet inputs for Step 2
+    const setVal = (id, val) => {
+      const el = document.getElementById(id);
+      if (el) el.value = val;
+    };
+    setVal('inputIncome', hero.income);
+    setVal('inputSavings', hero.savings);
+    setVal('inputWorkSetup', hero.workSetup);
+    setVal('inputCommute', hero.commuteHours);
+    setVal('inputGuild', hero.guild);
+    setVal('inputHmoShield', hero.hmoShield);
+    setVal('inputFamilySafetyNet', hero.familySafetyNet);
+    setVal('inputFamilyRemittance', hero.familyRemittance);
+    setVal('inputAiLeverage', hero.aiLeverage);
+    setVal('inputSocialCapital', hero.socialCapital);
+    setVal('inputLearningVelocity', hero.learningVelocity);
+    setVal('inputDesireVector', hero.desireVector);
+    setVal('inputRiskStance', hero.riskStance);
+
+    const classBadge = document.getElementById('selectedClassBadge');
+    if (classBadge) {
+      classBadge.innerText = arch.name.replace(/^THE\s+/i, '').toUpperCase();
     }
 
-    const template = CLASS_ARCHETYPES[classKey] || CLASS_ARCHETYPES.bpo;
-    hero.id = template.id;
-    hero.className = template.className;
-    hero.archetypeTitle = template.archetypeTitle;
-    hero.income = template.baseIncome;
-    hero.savings = template.baseSavings;
-    hero.workSetup = template.workSetup;
-    hero.commuteHours = template.commuteHours;
-    hero.guild = template.guild;
-    hero.hmoShield = template.hmoShield;
-    hero.familySafetyNet = template.familySafetyNet;
-    hero.familyRemittance = template.familyRemittance;
-    hero.aiLeverage = template.aiLeverage;
-    hero.socialCapital = template.socialCapital;
-    hero.learningVelocity = template.learningVelocity;
-    hero.desireVector = template.desireVector;
-    hero.riskStance = template.riskStance;
+    // Update Calibrate button label at bottom of Screen 2
+    const calibrateLabel = document.getElementById('btnCalibrateLabel');
+    if (calibrateLabel) {
+      const cleanName = arch.name.replace(/^THE\s+/i, '');
+      calibrateLabel.innerText = `CALIBRATE [${cleanName}]`;
+    }
 
-    // Populate Character Sheet inputs
-    document.getElementById('inputIncome').value = hero.income;
-    document.getElementById('inputSavings').value = hero.savings;
-    document.getElementById('inputWorkSetup').value = hero.workSetup;
-    document.getElementById('inputCommute').value = hero.commuteHours;
-    document.getElementById('inputGuild').value = hero.guild;
-    document.getElementById('inputHmoShield').value = hero.hmoShield;
-    document.getElementById('inputFamilySafetyNet').value = hero.familySafetyNet;
-    document.getElementById('inputFamilyRemittance').value = hero.familyRemittance;
-    document.getElementById('inputAiLeverage').value = hero.aiLeverage;
-    document.getElementById('inputSocialCapital').value = hero.socialCapital;
-    document.getElementById('inputLearningVelocity').value = hero.learningVelocity;
-    document.getElementById('inputDesireVector').value = hero.desireVector;
-    document.getElementById('inputRiskStance').value = hero.riskStance;
-    document.getElementById('selectedClassBadge').innerText = hero.className.toUpperCase();
+    // Re-render cards to reflect selected state
+    this.renderArchetypeCards();
+  },
 
-    document.getElementById('btnProceedToSheet').disabled = false;
+  selectClassByKey(num) {
+    const keyMap = {
+      1: 'corp_tank',
+      2: 'agile_mage',
+      3: 'novice_explorer',
+      4: 'wildcard_rogue'
+    };
+    const targetId = keyMap[num];
+    if (targetId) {
+      this.selectClass(targetId);
+    }
+  },
+
+  proceedToCalibration() {
+    soundEngine.playLevelUp();
+    this.navTo('screen-character-sheet');
   },
 
   saveCharacterSheet(e) {
@@ -2185,16 +2415,36 @@ Return ONLY the raw JSON object, without markdown formatting.`;
 };
 window.app = app;
 
-// Global Shortcut: Ctrl + Shift + 1 for Admin Gemini API Key Modal
+// Global Shortcuts (Gemini Admin Modal & Archetype Keypad 1-4 / Enter)
 document.addEventListener('keydown', (e) => {
+  // Admin Gemini API Key Modal Shortcut (Ctrl + Shift + 1)
   if (e.ctrlKey && e.shiftKey && (e.key === '1' || e.key === '!' || e.code === 'Digit1')) {
     e.preventDefault();
     app.openAdminModal();
+    return;
+  }
+
+  // Ignore single-key shortcuts when typing in inputs/textareas/selects
+  const activeTag = document.activeElement ? document.activeElement.tagName.toLowerCase() : '';
+  if (activeTag === 'input' || activeTag === 'textarea' || activeTag === 'select') {
+    return;
+  }
+
+  // Archetype Select Screen Keypad Shortcuts (1, 2, 3, 4 and Enter)
+  const classSelectScreen = document.getElementById('screen-class-select');
+  if (classSelectScreen && !classSelectScreen.classList.contains('hidden')) {
+    if (['1', '2', '3', '4'].includes(e.key)) {
+      e.preventDefault();
+      app.selectClassByKey(parseInt(e.key));
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      app.proceedToCalibration();
+    }
   }
 });
 
-// Initial Console Announcement & What-If Vault Hydration
-document.addEventListener('DOMContentLoaded', () => {
+// Initial Console Announcement, What-If Vault Hydration & Archetype Loading
+document.addEventListener('DOMContentLoaded', async () => {
   try {
     const saved = localStorage.getItem('lifesim_whatif_vault');
     if (saved) {
@@ -2208,5 +2458,6 @@ document.addEventListener('DOMContentLoaded', () => {
     whatIfVault = [];
   }
   app.renderWhatIfSwitcher();
-  console.log('🚀 LifeSim.ai Multiverse Engine Loaded with Persistent What-If Vault & Gemini AI Synthesis!');
+  await app.loadArchetypes();
+  console.log('🚀 LifeSim.ai Multiverse Engine Loaded with Persistent What-If Vault & Archetype Config!');
 });

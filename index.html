@@ -303,187 +303,69 @@
     </section>
 
     <!-- ========================================================================= -->
-    <!-- SCREEN 2: STEP 1 - CHARACTER SELECT (RPG Class Picker)                    -->
+    <!-- SCREEN 2: STEP 1 - ARCHETYPE SELECT (Socioeconomic Class Picker)          -->
     <!-- ========================================================================= -->
-    <section id="screen-class-select" class="screen-view hidden max-w-5xl mx-auto my-4">
-      <div class="text-center mb-8">
-        <div class="inline-block bg-rpg-mana/10 text-rpg-mana px-3 py-1 border-2 border-rpg-mana font-pixel text-[10px] uppercase mb-2">
-          Step 1: Choose Your Starting Archetype
-        </div>
-        <h2 class="font-pixel text-xl sm:text-3xl text-white">SELECT YOUR RPG CLASS</h2>
-        <p class="font-mono text-sm text-slate-400 mt-1">Every class has unique starting gold, stress resistance, and stamina multipliers.</p>
-      </div>
-
-      <!-- Class Cards Grid -->
-      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        
-        <!-- Class 1: The BPO Night Owl -->
-        <div id="card-class-bpo" onclick="app.selectClass('bpo')" class="class-card group bg-dungeon-900 hover:bg-dungeon-850 border-4 border-slate-950 p-5 shadow-brutal transition-all cursor-pointer relative flex flex-col justify-between">
-          <div>
-            <div class="w-16 h-16 mx-auto mb-4 bg-indigo-950 border-3 border-indigo-400 p-2 flex items-center justify-center shadow-brutal-sm text-3xl text-indigo-400 group-hover:scale-110 transition-transform">
-              <i class="fa-solid fa-headset"></i>
-            </div>
-            <div class="text-center">
-              <span class="inline-block px-2 py-0.5 bg-indigo-900/60 text-indigo-300 font-pixel text-[8px] uppercase border border-indigo-700 mb-1">Corporate Tank</span>
-              <h3 class="font-pixel text-sm text-white mb-2">The BPO Night Owl</h3>
-              <p class="text-xs text-slate-400 leading-relaxed mb-4">
-                Graveyard shift warrior in Eastwood/BGC. High stability, battling EDSA commute & heavy sandwich generation remittances.
-              </p>
-            </div>
+    <section id="screen-class-select" class="screen-view hidden max-w-7xl mx-auto my-4 space-y-6">
+      
+      <!-- Manila Metro Protocol Header Card -->
+      <div class="bg-dungeon-900 border-4 border-slate-950 p-6 sm:p-8 shadow-brutal-lg flex flex-col md:flex-row md:items-center justify-between gap-6 relative overflow-hidden">
+        <div>
+          <div class="flex items-center gap-2 mb-2">
+            <span class="w-2.5 h-2.5 bg-rpg-gold"></span>
+            <span class="font-pixel text-[10px] text-rpg-gold uppercase tracking-wider">■ MANILA METRO PROTOCOL // V2.4</span>
           </div>
-
-          <div class="space-y-2.5 pt-3 border-t-2 border-slate-800 text-xs">
-            <div>
-              <div class="flex justify-between text-[11px] mb-1">
-                <span class="text-rpg-gold font-mono font-bold"><i class="fa-solid fa-coins mr-1"></i>Wealth</span>
-                <span class="font-mono">75/100</span>
-              </div>
-              <div class="w-full bg-slate-950 h-2.5 border border-slate-800"><div class="bg-rpg-gold h-full w-3/4"></div></div>
-            </div>
-            <div>
-              <div class="flex justify-between text-[11px] mb-1">
-                <span class="text-rose-400 font-mono font-bold"><i class="fa-solid fa-heart-crack mr-1"></i>Stress</span>
-                <span class="font-mono">85/100</span>
-              </div>
-              <div class="w-full bg-slate-950 h-2.5 border border-slate-800"><div class="bg-rose-500 h-full w-[85%]"></div></div>
-            </div>
-            <div>
-              <div class="flex justify-between text-[11px] mb-1">
-                <span class="text-rpg-mana font-mono font-bold"><i class="fa-solid fa-dove mr-1"></i>Freedom</span>
-                <span class="font-mono">35/100</span>
-              </div>
-              <div class="w-full bg-slate-950 h-2.5 border border-slate-800"><div class="bg-rpg-mana h-full w-[35%]"></div></div>
-            </div>
-          </div>
+          <h2 class="font-pixel text-2xl sm:text-4xl text-rpg-gold tracking-tight drop-shadow-[0_2px_0_#020617] mb-2">
+            SELECT YOUR HERO ARCHETYPE
+          </h2>
+          <p class="text-xs sm:text-sm text-slate-300 font-mono max-w-3xl leading-relaxed">
+            Calibrated to modern Philippine professional realities, inflation, and career hazards. Choose your base class to run branching simulations through the Philippine economic landscape.
+          </p>
         </div>
 
-        <!-- Class 2: The Hustling Freelancer -->
-        <div id="card-class-freelancer" onclick="app.selectClass('freelancer')" class="class-card group bg-dungeon-900 hover:bg-dungeon-850 border-4 border-slate-950 p-5 shadow-brutal transition-all cursor-pointer relative flex flex-col justify-between">
+        <!-- Tax Status Badge Box -->
+        <div class="bg-slate-950 border-2 border-rpg-gold/60 p-3.5 shadow-brutal-sm flex items-center gap-3 self-start md:self-center shrink-0">
+          <div class="w-8 h-8 bg-dungeon-850 border border-rpg-gold flex items-center justify-center text-rpg-gold text-base">
+            <i class="fa-solid fa-shield-halved"></i>
+          </div>
           <div>
-            <div class="w-16 h-16 mx-auto mb-4 bg-emerald-950 border-3 border-emerald-400 p-2 flex items-center justify-center shadow-brutal-sm text-3xl text-emerald-400 group-hover:scale-110 transition-transform">
-              <i class="fa-solid fa-laptop-code"></i>
-            </div>
-            <div class="text-center">
-              <span class="inline-block px-2 py-0.5 bg-emerald-900/60 text-emerald-300 font-pixel text-[8px] uppercase border border-emerald-700 mb-1">Agile Mage</span>
-              <h3 class="font-pixel text-sm text-white mb-2">Hustling Freelancer</h3>
-              <p class="text-xs text-slate-400 leading-relaxed mb-4">
-                Upwork & US client specialist. High freedom and dollar earning potential, utilizing AI workflows to deliver projects 3x faster.
-              </p>
-            </div>
-          </div>
-
-          <div class="space-y-2.5 pt-3 border-t-2 border-slate-800 text-xs">
-            <div>
-              <div class="flex justify-between text-[11px] mb-1">
-                <span class="text-rpg-gold font-mono font-bold"><i class="fa-solid fa-coins mr-1"></i>Wealth</span>
-                <span class="font-mono">80/100</span>
-              </div>
-              <div class="w-full bg-slate-950 h-2.5 border border-slate-800"><div class="bg-rpg-gold h-full w-[80%]"></div></div>
-            </div>
-            <div>
-              <div class="flex justify-between text-[11px] mb-1">
-                <span class="text-rose-400 font-mono font-bold"><i class="fa-solid fa-heart-crack mr-1"></i>Stress</span>
-                <span class="font-mono">55/100</span>
-              </div>
-              <div class="w-full bg-slate-950 h-2.5 border border-slate-800"><div class="bg-rose-500 h-full w-[55%]"></div></div>
-            </div>
-            <div>
-              <div class="flex justify-between text-[11px] mb-1">
-                <span class="text-rpg-mana font-mono font-bold"><i class="fa-solid fa-dove mr-1"></i>Freedom</span>
-                <span class="font-mono">85/100</span>
-              </div>
-              <div class="w-full bg-slate-950 h-2.5 border border-slate-800"><div class="bg-rpg-mana h-full w-[85%]"></div></div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Class 3: The Fresh Grad -->
-        <div id="card-class-freshgrad" onclick="app.selectClass('freshgrad')" class="class-card group bg-dungeon-900 hover:bg-dungeon-850 border-4 border-slate-950 p-5 shadow-brutal transition-all cursor-pointer relative flex flex-col justify-between">
-          <div>
-            <div class="w-16 h-16 mx-auto mb-4 bg-amber-950 border-3 border-amber-400 p-2 flex items-center justify-center shadow-brutal-sm text-3xl text-amber-400 group-hover:scale-110 transition-transform">
-              <i class="fa-solid fa-graduation-cap"></i>
-            </div>
-            <div class="text-center">
-              <span class="inline-block px-2 py-0.5 bg-amber-900/60 text-amber-300 font-pixel text-[8px] uppercase border border-amber-700 mb-1">Novice Explorer</span>
-              <h3 class="font-pixel text-sm text-white mb-2">The Fresh Grad</h3>
-              <p class="text-xs text-slate-400 leading-relaxed mb-4">
-                Fresh out of university. Low treasury but maximum learning agility, zero burnout baggage, and high AI adaptability.
-              </p>
-            </div>
-          </div>
-
-          <div class="space-y-2.5 pt-3 border-t-2 border-slate-800 text-xs">
-            <div>
-              <div class="flex justify-between text-[11px] mb-1">
-                <span class="text-rpg-gold font-mono font-bold"><i class="fa-solid fa-coins mr-1"></i>Wealth</span>
-                <span class="font-mono">30/100</span>
-              </div>
-              <div class="w-full bg-slate-950 h-2.5 border border-slate-800"><div class="bg-rpg-gold h-full w-[30%]"></div></div>
-            </div>
-            <div>
-              <div class="flex justify-between text-[11px] mb-1">
-                <span class="text-rose-400 font-mono font-bold"><i class="fa-solid fa-heart-crack mr-1"></i>Stress</span>
-                <span class="font-mono">40/100</span>
-              </div>
-              <div class="w-full bg-slate-950 h-2.5 border border-slate-800"><div class="bg-rose-500 h-full w-[40%]"></div></div>
-            </div>
-            <div>
-              <div class="flex justify-between text-[11px] mb-1">
-                <span class="text-rpg-mana font-mono font-bold"><i class="fa-solid fa-dove mr-1"></i>Freedom</span>
-                <span class="font-mono">70/100</span>
-              </div>
-              <div class="w-full bg-slate-950 h-2.5 border border-slate-800"><div class="bg-rpg-mana h-full w-[70%]"></div></div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Class 4: Custom Hero -->
-        <div id="card-class-custom" onclick="app.selectClass('custom')" class="class-card group bg-dungeon-900 hover:bg-dungeon-850 border-4 border-slate-950 p-5 shadow-brutal transition-all cursor-pointer relative flex flex-col justify-between">
-          <div>
-            <div class="w-16 h-16 mx-auto mb-4 bg-purple-950 border-3 border-purple-400 p-2 flex items-center justify-center shadow-brutal-sm text-3xl text-purple-400 group-hover:scale-110 transition-transform">
-              <i class="fa-solid fa-user-ninja"></i>
-            </div>
-            <div class="text-center">
-              <span class="inline-block px-2 py-0.5 bg-purple-900/60 text-purple-300 font-pixel text-[8px] uppercase border border-purple-700 mb-1">Wildcard Rogue</span>
-              <h3 class="font-pixel text-sm text-white mb-2">Custom Hero</h3>
-              <p class="text-xs text-slate-400 leading-relaxed mb-4">
-                Create a tailor-made archetype with your own custom job title, perks, family setup, and equalizer combination.
-              </p>
-            </div>
-          </div>
-
-          <div class="space-y-2.5 pt-3 border-t-2 border-slate-800 text-xs">
-            <div>
-              <div class="flex justify-between text-[11px] mb-1">
-                <span class="text-rpg-gold font-mono font-bold"><i class="fa-solid fa-coins mr-1"></i>Wealth</span>
-                <span class="font-mono">60/100</span>
-              </div>
-              <div class="w-full bg-slate-950 h-2.5 border border-slate-800"><div class="bg-rpg-gold h-full w-[60%]"></div></div>
-            </div>
-            <div>
-              <div class="flex justify-between text-[11px] mb-1">
-                <span class="text-rose-400 font-mono font-bold"><i class="fa-solid fa-heart-crack mr-1"></i>Stress</span>
-                <span class="font-mono">60/100</span>
-              </div>
-              <div class="w-full bg-slate-950 h-2.5 border border-slate-800"><div class="bg-rose-500 h-full w-[60%]"></div></div>
-            </div>
-            <div>
-              <div class="flex justify-between text-[11px] mb-1">
-                <span class="text-rpg-mana font-mono font-bold"><i class="fa-solid fa-dove mr-1"></i>Freedom</span>
-                <span class="font-mono">60/100</span>
-              </div>
-              <div class="w-full bg-slate-950 h-2.5 border border-slate-800"><div class="bg-rpg-mana h-full w-[60%]"></div></div>
-            </div>
+            <span class="block font-pixel text-[8px] text-slate-400 uppercase">TAX STATUS</span>
+            <span class="font-pixel text-xs text-rpg-gold font-bold">BIR 2316 / 8% GROSS</span>
           </div>
         </div>
       </div>
 
-      <!-- Action Confirmation Bar -->
-      <div class="text-center">
-        <button id="btnProceedToSheet" onclick="app.navTo('screen-character-sheet')" disabled class="btn-brutal px-8 py-4 bg-rpg-gold disabled:opacity-40 disabled:pointer-events-none text-slate-950 font-bold border-4 border-slate-950 shadow-brutal font-pixel text-xs tracking-wider inline-flex items-center gap-3">
-          <span>CONFIRM CLASS & CALIBRATE REALITY</span>
-          <i class="fa-solid fa-arrow-right"></i>
-        </button>
+      <!-- 4 Archetype Cards Grid (Hydrated dynamically from getArchetypes()) -->
+      <div id="archetypeCardsGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5 items-stretch">
+        <!-- Dynamically populated by app.renderArchetypeCards() on initialization -->
+      </div>
+
+      <!-- Keypad Input & Action Confirmation Bar -->
+      <div class="bg-dungeon-900 border-4 border-slate-950 p-4 sm:p-5 shadow-brutal flex flex-col md:flex-row items-center justify-between gap-4">
+        <!-- Keypad Row -->
+        <div class="flex flex-wrap items-center gap-2 text-xs font-mono text-slate-400">
+          <span class="font-pixel text-[9px] text-rpg-mana">[KEYPAD INPUT]:</span>
+          <div class="flex items-center gap-1.5">
+            <button onclick="app.selectClassByKey(1)" class="w-6 h-6 bg-slate-950 border border-slate-700 text-rpg-gold font-pixel text-[9px] flex items-center justify-center hover:border-rpg-gold">1</button>
+            <button onclick="app.selectClassByKey(2)" class="w-6 h-6 bg-slate-950 border border-slate-700 text-rpg-gold font-pixel text-[9px] flex items-center justify-center hover:border-rpg-gold">2</button>
+            <button onclick="app.selectClassByKey(3)" class="w-6 h-6 bg-slate-950 border border-slate-700 text-rpg-gold font-pixel text-[9px] flex items-center justify-center hover:border-rpg-gold">3</button>
+            <button onclick="app.selectClassByKey(4)" class="w-6 h-6 bg-slate-950 border border-slate-700 text-rpg-gold font-pixel text-[9px] flex items-center justify-center hover:border-rpg-gold">4</button>
+          </div>
+          <span class="text-slate-500 font-pixel text-[8px] uppercase">DIRECT SELECT</span>
+          <span class="text-slate-600">|</span>
+          <span class="text-slate-400 font-pixel text-[8px]">↵ PRESS ENTER TO LOCK & CALIBRATE</span>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="flex items-center gap-3 w-full md:w-auto justify-end">
+          <button onclick="app.selectClass('wildcard_rogue'); app.navTo('screen-character-sheet');" class="btn-brutal px-4 py-3 bg-dungeon-950 hover:bg-slate-900 text-rpg-mana border-2 border-rpg-mana/70 font-pixel text-[10px] shadow-brutal-sm flex items-center gap-2">
+            <i class="fa-solid fa-wrench"></i>
+            <span>CUSTOM BUILDER</span>
+          </button>
+          <button id="btnCalibrateArchetype" onclick="app.proceedToCalibration()" class="btn-brutal px-6 py-3 bg-rpg-gold hover:bg-amber-400 text-slate-950 font-bold border-3 border-slate-950 shadow-brutal font-pixel text-[10px] tracking-wider flex items-center gap-2">
+            <span id="btnCalibrateLabel">CALIBRATE [BPO NIGHT OWL]</span>
+            <i class="fa-solid fa-arrow-right"></i>
+          </button>
+        </div>
       </div>
     </section>
 
