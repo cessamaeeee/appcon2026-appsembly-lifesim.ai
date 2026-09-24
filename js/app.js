@@ -6,6 +6,7 @@ import { auth, db } from "../lib/firebase.ts";
 import { signInWithPopup, GoogleAuthProvider, createUserWithEmailAndPassword,
   signInWithEmailAndPassword, signOut, signInAnonymously } from "firebase/auth";
 import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
+import { calculateFallbackSimulation, sanitizeHeroState, SIMULATION_YEARS } from "./simulationEngine.js";
 
 // --- 1. ZERO-DEPENDENCY 8-BIT SOUND SYNTHESIZER (Web Audio API) ---
 class RetroSoundEngine {
@@ -566,73 +567,31 @@ let activeAiSimulationData = null;
 let whatIfVault = [];
 let activeWhatIfId = null;
 
-// Pure Dynamic Algorithmic Synthesizer (Zero static mock answers)
-function buildDynamicCalculatedSimulation(heroState, chosenPathway, scenarioKey) {
-  const baseIncome = heroState.income || 45000;
-  const startingSavings = heroState.savings || 120000;
-  const debtPayment = heroState.debtPayment || 0;
-  const familyRemittance = heroState.familyRemittance || 0;
-  const isSandwich = familyRemittance > 0 || heroState.familySafetyNet === 'SandwichGen';
+// Dynamic Algorithmic Synthesizer combining pure calculation engine with UI narrative enrichment
+function buildDynamicCalculatedSimulation(heroState, chosenPathway = 'Multiverse Pathway', scenarioKey = 'custom') {
+  const hero = sanitizeHeroState(heroState);
+  const location = heroState?.location || 'Metro Manila';
+  const className = heroState?.className || 'The Strategic Hero';
+  const isSandwich = hero.familyRemittance > 0 || hero.familySafetyNet === 'SandwichGen';
 
-  // Equalizer Multipliers
-  let aiMult = heroState.aiLeverage === 'Architect10x' ? 1.50 : (heroState.aiLeverage === 'AiAugmented' ? 1.30 : 1.0);
-  let socialMult = heroState.socialCapital === 'GlobalNetwork' ? 1.35 : (heroState.socialCapital === 'CommunityPeer' ? 1.15 : 1.0);
-  let learnMult = heroState.learningVelocity === 'HyperAdaptive' ? 1.20 : 1.0;
-  const equalizerFactor = aiMult * socialMult * learnMult;
+  // 1. Execute pure calculation engine
+  const calculationResult = calculateFallbackSimulation(hero, scenarioKey, chosenPathway);
+  const simYears = calculationResult.years;
 
-  // Base pathway multiplier progression
-  const pathMultipliers = {
-    tech: [1.10, 1.85, 2.75, 3.80, 4.60],
-    nomad: [1.05, 1.45, 2.10, 2.90, 3.60],
-    corp: [0.80, 1.60, 2.60, 3.90, 5.00],
-    custom: [1.00, 1.65, 2.50, 3.60, 4.70]
-  };
-
-  const mults = pathMultipliers[scenarioKey] || pathMultipliers.custom;
-  const years = [2026, 2027, 2028, 2029, 2030];
-  const simYears = {};
-  let currentSavings = startingSavings;
-
-  years.forEach((yr, idx) => {
-    const yearsPassed = idx;
-    const compoundGrowth = Math.pow(equalizerFactor, yearsPassed * 0.35);
-    const monthlyIncome = Math.round(baseIncome * mults[idx] * compoundGrowth);
-    
-    // Living expenses factoring zone and inflation
-    const expenseRatio = scenarioKey === 'nomad' ? 0.45 : 0.60;
-    const baseLiving = Math.round(monthlyIncome * expenseRatio);
-    const annualDebt = (yr <= 2027) ? debtPayment * 12 : 0;
-    const annualRemittance = familyRemittance * 12;
-    const annualEarned = monthlyIncome * 12;
-    const annualLiving = baseLiving * 12;
-    
-    const annualNet = annualEarned - annualLiving - annualDebt - annualRemittance;
-    currentSavings += Math.max(0, annualNet);
-
-    const stressBase = scenarioKey === 'nomad' ? 40 : (scenarioKey === 'corp' ? 65 : 55);
-    const stressRemittance = isSandwich ? 12 : 0;
-    const stressRelief = Math.round(yearsPassed * 7 + (heroState.aiLeverage !== 'Traditional' ? 8 : 0));
-    const stress = Math.min(95, Math.max(18, stressBase + stressRemittance - stressRelief));
-
-    const freeBase = scenarioKey === 'nomad' ? 32 : (heroState.commuteHours > 0 ? 18 : 25);
-    const freeHours = Math.min(48, Math.round(freeBase + (heroState.commuteHours * 2.5) + (yearsPassed * 3)));
-
-    const wealthScore = Math.min(99, Math.round(35 + (monthlyIncome / baseIncome) * 15 + yearsPassed * 6));
-    const mindScore = Math.min(99, Math.max(20, 100 - stress + 5));
-    const freedomScore = Math.min(99, Math.round(30 + yearsPassed * 14 + (scenarioKey === 'nomad' ? 15 : 5)));
-    const healthScore = heroState.hmoShield === 'Comprehensive' ? 92 : (heroState.hmoShield === 'PhilHealth' ? 60 : 45);
-
+  // 2. Attach UI narrative, phases, and curveball artifacts
+  SIMULATION_YEARS.forEach((yr, idx) => {
+    const monthlyIncome = simYears[yr].monthlyIncome;
     const phases = [
-      `Phase 1: Groundwork & Setup in ${heroState.location}`,
-      `Phase 2: Transition & First Revenue Leap (₱${(monthlyIncome/1000).toFixed(0)}k/mo)`,
+      `Phase 1: Groundwork & Setup in ${location}`,
+      `Phase 2: Transition & First Revenue Leap (₱${(monthlyIncome / 1000).toFixed(0)}k/mo)`,
       `Phase 3: Asymmetric Scaling & Debt Elimination`,
       `Phase 4: Sovereign Retainers & Family Fortress`,
       `Phase 5: Financial Transcendence & Autonomy`
     ];
 
     const narratives = [
-      `Starting from ${heroState.location} as ${heroState.className}. You budget your ₱${heroState.savings.toLocaleString()} initial safety net while managing ${isSandwich ? `₱${familyRemittance.toLocaleString()}/mo family support` : 'personal living costs'}.`,
-      `Your ${heroState.aiLeverage} skill leverage kicks in. Monthly income expands to ₱${monthlyIncome.toLocaleString()}, and debt burden is systematically crushed.`,
+      `Starting from ${location} as ${className}. You budget your ₱${hero.savings.toLocaleString()} initial safety net while managing ${isSandwich ? `₱${hero.familyRemittance.toLocaleString()}/mo family support` : 'personal living costs'}.`,
+      `Your ${hero.aiLeverage} skill leverage kicks in. Monthly income expands to ₱${monthlyIncome.toLocaleString()}, and debt burden is systematically crushed.`,
       `The compound momentum of your network and skills takes hold. Living expenses remain disciplined, channeling surplus into Pag-IBIG MP2.`,
       `You operate with full autonomy. Commute fatigue is fully eliminated, securing high-tier retainer clients across global markets.`,
       `Sovereignty achieved. Monthly cashflow hits ₱${monthlyIncome.toLocaleString()}, yielding sustainable dividends and generational freedom for your family.`
@@ -642,7 +601,7 @@ function buildDynamicCalculatedSimulation(heroState, chosenPathway, scenarioKey)
       {
         category: '⚡ Tech & Infrastructure Drift',
         title: 'Workstation GPU & Connectivity Upgrade',
-        desc: `Hardware demands require ₱35,000 upgrade in ${heroState.location}. Covered by liquid buffer.`,
+        desc: `Hardware demands require ₱35,000 upgrade in ${location}. Covered by liquid buffer.`,
         mitigation: 'Maintain 3 months emergency fund in digital banks (Maya/Seabank).'
       },
       {
@@ -654,7 +613,7 @@ function buildDynamicCalculatedSimulation(heroState, chosenPathway, scenarioKey)
       {
         category: '🏥 Family Health Shield Activation',
         title: 'Dependent Medical Emergency Test',
-        desc: `Family member health concern requires attention. Handled via ${heroState.hmoShield} shield without depleting core capital.`,
+        desc: `Family member health concern requires attention. Handled via ${hero.hmoShield} shield without depleting core capital.`,
         mitigation: 'Maintain standalone HMO coverage for senior dependents.'
       },
       {
@@ -671,29 +630,18 @@ function buildDynamicCalculatedSimulation(heroState, chosenPathway, scenarioKey)
       }
     ];
 
-    simYears[yr] = {
-      phase: phases[idx],
-      monthlyIncome,
-      cumulativeSavings: Math.round(currentSavings),
-      monthlyExpenses: baseLiving + (yr <= 2027 ? debtPayment : 0) + familyRemittance,
-      stress,
-      freeHours,
-      wealthScore,
-      mindScore,
-      freedomScore,
-      healthScore,
-      narrative: narratives[idx],
-      curveball: curveballs[idx]
-    };
+    simYears[yr].phase = phases[idx];
+    simYears[yr].narrative = narratives[idx];
+    simYears[yr].curveball = curveballs[idx];
   });
 
   return {
     scenarioName: chosenPathway,
-    overallStrategicThesis: `AI Simulation for ${heroState.className} in ${heroState.location}: By choosing "${chosenPathway}", you leverage your ${heroState.aiLeverage} capabilities and ${heroState.socialCapital} network to overcome your ${isSandwich ? `₱${familyRemittance.toLocaleString()}/mo family remittance obligation` : 'starting line limitations'}. Over 5 years, your income expands from ₱${baseIncome.toLocaleString()}/mo to ₱${simYears['2030'].monthlyIncome.toLocaleString()}/mo while accumulating ₱${simYears['2030'].cumulativeSavings.toLocaleString()} in liquid wealth.`,
+    overallStrategicThesis: `AI Simulation for ${className} in ${location}: By choosing "${chosenPathway}", you leverage your ${hero.aiLeverage} capabilities and ${hero.socialCapital} network to overcome your ${isSandwich ? `₱${hero.familyRemittance.toLocaleString()}/mo family remittance obligation` : 'starting line limitations'}. Over 5 years, your income expands from ₱${hero.income.toLocaleString()}/mo to ₱${simYears['2030'].monthlyIncome.toLocaleString()}/mo while accumulating ₱${simYears['2030'].cumulativeSavings.toLocaleString()} in liquid wealth.`,
     years: simYears,
     quests: {
       treasury: [
-        { id: 'q_t1', text: `Build emergency buffer of ₱${Math.round(baseIncome * 3).toLocaleString()} in Maya/Seabank` },
+        { id: 'q_t1', text: `Build emergency buffer of ₱${Math.round(hero.income * 3).toLocaleString()} in Maya/Seabank` },
         { id: 'q_t2', text: `Automate monthly allocation into Pag-IBIG MP2 compounding fund` }
       ],
       skills: [
