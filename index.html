@@ -160,54 +160,121 @@
   <main class="max-w-7xl mx-auto px-4 py-6 sm:py-8">
 
     <!-- ========================================================================= -->
-    <!-- SCREEN 1: TITLE SCREEN (Gamified Welcome & Google Login)                  -->
+    <!-- SCREEN 1: TITLE SCREEN (Step 0 - Gamified Welcome & Auth Gateway)          -->
     <!-- ========================================================================= -->
     <section id="screen-title" class="screen-view active max-w-4xl mx-auto my-6 text-center">
       <!-- Retro Animated Banner -->
-      <div class="relative bg-dungeon-900 border-4 border-slate-950 p-8 sm:p-12 shadow-brutal-lg mb-8 overflow-hidden">
+      <div class="relative bg-dungeon-900 border-4 border-slate-950 p-6 sm:p-10 shadow-brutal-lg mb-8 overflow-hidden">
         <div class="absolute -top-24 -left-24 w-64 h-64 bg-indigo-600/20 rounded-full blur-3xl pointer-events-none"></div>
         <div class="absolute -bottom-24 -right-24 w-64 h-64 bg-rpg-emerald/15 rounded-full blur-3xl pointer-events-none"></div>
 
         <!-- Floating RPG Rune Icons -->
-        <div class="flex justify-center items-center gap-4 text-rpg-gold text-2xl mb-4 animate-float">
+        <div class="flex justify-center items-center gap-4 text-rpg-gold text-2xl mb-3 animate-float">
           <i class="fa-solid fa-meteor text-rpg-mana"></i>
           <i class="fa-solid fa-dungeon text-3xl"></i>
           <i class="fa-solid fa-wand-magic-sparkles text-rpg-void"></i>
         </div>
 
-        <p class="font-pixel text-xs sm:text-sm text-rpg-mana tracking-widest uppercase mb-3">
-          -- PHILIPPINE PARALLEL DESTINY ENGINE --
+        <p class="font-pixel text-[10px] sm:text-xs text-rpg-mana tracking-widest uppercase mb-2">
+          -- PHILIPPINE PARALLEL DESTINY ENGINE // AUTH GATEWAY --
         </p>
 
-        <h1 class="font-pixel text-2xl sm:text-4xl md:text-5xl text-white tracking-tight leading-relaxed mb-6 drop-shadow-[0_4px_0_#020617]">
+        <h1 class="font-pixel text-3xl sm:text-5xl text-white tracking-tight leading-relaxed mb-4 drop-shadow-[0_4px_0_#020617]">
           LifeSim<span class="text-rpg-gold">.ai</span>
         </h1>
 
-        <div class="inline-block bg-slate-950 border-2 border-indigo-500/50 px-4 py-2 text-xs sm:text-sm font-mono text-indigo-300 mb-8 max-w-xl mx-auto shadow-brutal-sm">
+        <div class="inline-block bg-slate-950 border-2 border-indigo-500/50 px-4 py-2 text-xs font-mono text-indigo-300 mb-6 max-w-xl mx-auto shadow-brutal-sm">
           <i class="fa-solid fa-terminal mr-2 text-rpg-emerald"></i>
-          Simulate 5-year Philippine timelines: Sandwich Generation reality, AI equalizers, BPO pivots, WFH provincial migrations, BIR taxes & Pag-IBIG MP2.
+          Simulate 5-year Philippine career & life trajectories: Sandwich generation reality, AI equalizers, BIR taxes, and Pag-IBIG MP2 compounding.
         </div>
 
-        <!-- Start Game & Auth Buttons -->
-        <div class="flex flex-col sm:flex-row items-center justify-center gap-4 max-w-md mx-auto">
-          <!-- Google Login Button -->
-          <button id="googleAuthBtn" onclick="app.signInWithGoogle()" class="btn-brutal w-full py-4 px-6 bg-white hover:bg-slate-100 text-slate-950 font-bold border-4 border-slate-950 shadow-brutal text-sm flex items-center justify-center gap-3">
-            <svg class="w-5 h-5" viewBox="0 0 24 24">
+        <!-- ================= AUTH TERMINAL PANEL ================= -->
+        <div class="max-w-md mx-auto bg-slate-950 border-3 border-slate-800 p-5 sm:p-6 shadow-brutal-sm text-left">
+          
+          <!-- Method 1: Google Neural Link Button -->
+          <button id="btnGoogleAuth" onclick="app.signInWithGoogle()" class="btn-brutal w-full py-3.5 px-4 bg-white hover:bg-slate-100 text-slate-950 font-bold border-3 border-slate-950 shadow-brutal text-xs sm:text-sm flex items-center justify-center gap-3">
+            <svg class="w-4 h-4 sm:w-5 sm:h-5" viewBox="0 0 24 24">
               <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
               <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
               <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
               <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
             </svg>
-            <span class="font-pixel text-[11px]">ENTER WITH GOOGLE</span>
+            <span id="btnGoogleText" class="font-pixel text-[10px] sm:text-[11px] tracking-wide">CONTINUE WITH GOOGLE</span>
           </button>
 
-          <!-- Guest Hero Quick Start -->
-          <button id="guestAuthBtn" onclick="app.signInAsGuest()" class="btn-brutal w-full py-4 px-6 bg-rpg-gold hover:bg-amber-400 text-slate-950 font-bold border-4 border-slate-950 shadow-brutal text-sm flex items-center justify-center gap-2">
-            <i class="fa-solid fa-gamepad text-base"></i>
-            <span class="font-pixel text-[11px]">PLAY AS GUEST HERO</span>
+          <!-- Terminal Divider -->
+          <div class="relative my-5 text-center">
+            <div class="absolute inset-0 flex items-center"><div class="w-full border-t border-slate-800"></div></div>
+            <span class="relative bg-slate-950 px-2 font-pixel text-[8px] text-slate-500 uppercase">
+              // OR TRANSMIT CIPHER CREDENTIALS //
+            </span>
+          </div>
+
+          <!-- Mode Switcher Tabs (Login vs Register) -->
+          <div class="grid grid-cols-2 gap-2 mb-4 bg-dungeon-900 p-1 border-2 border-slate-800">
+            <button id="tabAuthLogin" type="button" onclick="app.setAuthMode('login')" class="py-1.5 text-center font-pixel text-[9px] bg-slate-800 text-rpg-gold border border-slate-700 transition-all">
+              <i class="fa-solid fa-key mr-1"></i> LOG IN
+            </button>
+            <button id="tabAuthRegister" type="button" onclick="app.setAuthMode('register')" class="py-1.5 text-center font-pixel text-[9px] text-slate-400 hover:text-slate-200 transition-all">
+              <i class="fa-solid fa-user-plus mr-1"></i> REGISTER
+            </button>
+          </div>
+
+          <!-- DEBUFF / Auth Error Alert Box (Hidden by default) -->
+          <div id="authErrorBox" class="hidden mb-4 bg-rose-950/90 border-2 border-rose-500 text-rose-300 p-3 text-xs font-mono shadow-brutal-sm">
+            <div class="flex items-start gap-2">
+              <i class="fa-solid fa-triangle-exclamation text-rose-400 mt-0.5"></i>
+              <div>
+                <span class="font-pixel text-[8px] text-rose-400 uppercase tracking-wider block mb-0.5">⚠️ AUTHENTICATION DEBUFF:</span>
+                <span id="authErrorMessage" class="text-slate-200 text-[11px]">Invalid email or password.</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Email / Password Form -->
+          <form id="emailAuthForm" onsubmit="event.preventDefault(); app.handleEmailAuthSubmit();" class="space-y-3">
+            <!-- Display Name Field (Visible only in register mode) -->
+            <div id="authDisplayNameField" class="hidden">
+              <label class="block font-pixel text-[9px] text-slate-300 uppercase mb-1">Hero Call-Sign / Name</label>
+              <input type="text" id="authDisplayNameInput" placeholder="e.g. Juan the Rogue" class="w-full bg-dungeon-900 border-2 border-slate-800 px-3 py-2 text-xs font-mono text-white focus:border-rpg-gold focus:outline-none transition-colors">
+            </div>
+
+            <!-- Email Field -->
+            <div>
+              <label class="block font-pixel text-[9px] text-slate-300 uppercase mb-1">Email Cipher</label>
+              <input type="email" id="authEmailInput" required placeholder="hero@destiny.ph" class="w-full bg-dungeon-900 border-2 border-slate-800 px-3 py-2 text-xs font-mono text-white focus:border-rpg-gold focus:outline-none transition-colors">
+            </div>
+
+            <!-- Password Field -->
+            <div>
+              <label class="block font-pixel text-[9px] text-slate-300 uppercase mb-1">Access Passphrase</label>
+              <input type="password" id="authPasswordInput" required minlength="6" placeholder="••••••••" class="w-full bg-dungeon-900 border-2 border-slate-800 px-3 py-2 text-xs font-mono text-white focus:border-rpg-gold focus:outline-none transition-colors">
+            </div>
+
+            <!-- Submit Button with Pending State -->
+            <button id="btnEmailSubmit" type="submit" class="btn-brutal w-full py-3 bg-rpg-gold hover:bg-amber-400 text-slate-950 font-bold border-3 border-slate-950 shadow-brutal text-xs flex items-center justify-center gap-2 mt-2">
+              <i id="btnEmailIcon" class="fa-solid fa-arrow-right-to-bracket"></i>
+              <span id="btnEmailText" class="font-pixel text-[10px]">INITIALIZE LOGIN</span>
+            </button>
+          </form>
+
+          <!-- Terminal Divider -->
+          <div class="relative my-4 text-center">
+            <div class="absolute inset-0 flex items-center"><div class="w-full border-t border-slate-800"></div></div>
+            <span class="relative bg-slate-950 px-2 font-pixel text-[8px] text-slate-500 uppercase">
+              // OR EXPLORE ANONYMOUSLY //
+            </span>
+          </div>
+
+          <!-- Method 3: Guest / Incognito Entry -->
+          <button id="guestAuthBtn" onclick="app.signInAsGuest()" class="btn-brutal w-full py-2.5 px-4 bg-dungeon-800 hover:bg-dungeon-700 text-slate-300 hover:text-white border-2 border-slate-950 shadow-brutal-sm text-xs flex items-center justify-center gap-2">
+            <i id="btnGuestIcon" class="fa-solid fa-mask text-rpg-mana"></i>
+            <span id="btnGuestText" class="font-pixel text-[9px]">PLAY AS GUEST HERO (ANON MODE)</span>
           </button>
+
         </div>
 
+        <!-- Shortcut Hint -->
         <p class="font-mono text-xs text-slate-400 mt-6 flex items-center justify-center gap-2">
           <i class="fa-solid fa-key text-rpg-void"></i>
           Tip: Press <span class="bg-purple-950 border border-purple-600 px-1.5 py-0.5 rounded text-purple-300 font-bold">Ctrl + Shift + 1</span> anytime to connect Google Gemini Live AI!
@@ -226,7 +293,7 @@
         </div>
         <div class="bg-dungeon-900 border-2 border-slate-950 p-3 shadow-brutal-sm">
           <div class="text-rpg-gold font-pixel text-[10px] mb-1">📊 DATA & PROJECTIONS</div>
-          <p class="text-xs text-slate-400">Calibrated on historical economic data & potential outcome modeling</p>
+          <p class="text-xs text-slate-400">Calibrated on historical economic data & outcome modeling</p>
         </div>
         <div class="bg-dungeon-900 border-2 border-slate-950 p-3 shadow-brutal-sm">
           <div class="text-rpg-void font-pixel text-[10px] mb-1">🤖 GEMINI 3.6 FLASH</div>
