@@ -165,14 +165,15 @@ In the Philippines, these decisions are heavily influenced by localized socio-ec
 
 ---
 
-## 👥 Team
+## 👥 Team — AppSembly
 
-| Name | Role / Focus Area |
-| :--- | :--- |
-| **Team Member 1** | *Full-Stack Development & AI Integration* |
-| **Team Member 2** | *UI/UX Design & Frontend Architecture* |
-| **Team Member 3** | *Macroeconomic Modeling & Prompt Engineering* |
-| **Team Member 4** | *Cloud Infrastructure & Data Persistence* |
+| Name | Role | Email | GitHub |
+| :--- | :--- | :--- | :--- |
+| **Ar-jay Agbayani** | Team Lead / Developer | `arjayagbayani38@gmail.com` | [@SirJeii](https://github.com/SirJeii) |
+| **Brent Daniel Nicomedes** | Multi Role | `bnicomedes37@gmail.com` | [@bdnicomedes](https://github.com/bdnicomedes) |
+| **Kiel Arthur Inigo Navasero** | UI/UX | `ksnavasero@ccc.edu.ph` | [@Kaiiiwith3i](https://github.com/Kaiiiwith3i) |
+| **Princess Mae Sanchez** | Developer | `princessmae.sanchez04@gmail.com` | [@cessamaeeee](https://github.com/cessamaeeee) |
+| **Venus S. Bacunot** | Product Designer | `bacunotsenuv@gmail.com` | [@Sen-VB](https://github.com/Sen-VB) |
 
 ---
 
