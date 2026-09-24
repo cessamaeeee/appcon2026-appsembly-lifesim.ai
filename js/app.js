@@ -1202,8 +1202,137 @@ const app = {
     this.closeAdminModal();
   },
 
+  // Auth UI State
+  authMode: 'login',
+
+  setAuthMode(mode) {
+    this.authMode = mode;
+    soundEngine.playBlip();
+    this.hideAuthError();
+
+    const tabLogin = document.getElementById('tabAuthLogin');
+    const tabReg = document.getElementById('tabAuthRegister');
+    const nameField = document.getElementById('authDisplayNameField');
+    const btnText = document.getElementById('btnEmailText');
+    const btnIcon = document.getElementById('btnEmailIcon');
+
+    if (mode === 'register') {
+      if (tabLogin) {
+        tabLogin.className = "py-1.5 text-center font-pixel text-[9px] text-slate-400 hover:text-slate-200 transition-all";
+      }
+      if (tabReg) {
+        tabReg.className = "py-1.5 text-center font-pixel text-[9px] bg-slate-800 text-rpg-gold border border-slate-700 transition-all";
+      }
+      if (nameField) nameField.classList.remove('hidden');
+      if (btnText) btnText.innerText = "FORGE NEW RECRUIT ACCOUNT";
+      if (btnIcon) btnIcon.className = "fa-solid fa-user-shield";
+    } else {
+      if (tabLogin) {
+        tabLogin.className = "py-1.5 text-center font-pixel text-[9px] bg-slate-800 text-rpg-gold border border-slate-700 transition-all";
+      }
+      if (tabReg) {
+        tabReg.className = "py-1.5 text-center font-pixel text-[9px] text-slate-400 hover:text-slate-200 transition-all";
+      }
+      if (nameField) nameField.classList.add('hidden');
+      if (btnText) btnText.innerText = "INITIALIZE LOGIN";
+      if (btnIcon) btnIcon.className = "fa-solid fa-arrow-right-to-bracket";
+    }
+  },
+
+  showAuthError(err) {
+    const errorBox = document.getElementById('authErrorBox');
+    const errorMsg = document.getElementById('authErrorMessage');
+    if (!errorBox || !errorMsg) return;
+
+    let message = typeof err === 'string' ? err : (err?.message || 'Authentication sequence failed.');
+    const code = err?.code || '';
+
+    // Map common Firebase auth error codes to friendly RPG descriptions
+    if (code === 'auth/invalid-credential' || code === 'auth/user-not-found' || code === 'auth/wrong-password' || code === 'auth/invalid-login-credentials') {
+      message = 'Invalid email cipher or passphrase. Please verify your credentials.';
+    } else if (code === 'auth/email-already-in-use') {
+      message = 'This email cipher is already registered. Switch to Log In to enter the nexus.';
+    } else if (code === 'auth/weak-password') {
+      message = 'Passphrase is too weak. Must contain at least 6 characters.';
+    } else if (code === 'auth/invalid-email') {
+      message = 'Invalid email cipher format. Please enter a valid email address.';
+    } else if (code === 'auth/network-request-failed') {
+      message = 'Neural link failure: Network request timed out or connection lost.';
+    } else if (code === 'auth/popup-closed-by-user') {
+      message = 'Google sign-in popup was closed before authentication finalized.';
+    } else if (code === 'auth/too-many-requests') {
+      message = 'Access temporarily throttled due to unusual activity. Please try again shortly.';
+    }
+
+    errorMsg.innerText = message;
+    errorBox.classList.remove('hidden');
+    soundEngine.playTone(150, 'sawtooth', 0.2);
+  },
+
+  hideAuthError() {
+    const errorBox = document.getElementById('authErrorBox');
+    if (errorBox) errorBox.classList.add('hidden');
+  },
+
+  setAuthLoading(isLoading, activeBtnId = 'btnEmailSubmit', loadingText = 'TRANSMITTING...') {
+    const btnGoogle = document.getElementById('btnGoogleAuth');
+    const btnGuest = document.getElementById('guestAuthBtn');
+    const btnEmail = document.getElementById('btnEmailSubmit');
+    const btnEmailText = document.getElementById('btnEmailText');
+    const btnGoogleText = document.getElementById('btnGoogleText');
+    const btnGuestText = document.getElementById('btnGuestText');
+
+    [btnGoogle, btnGuest, btnEmail].forEach(btn => {
+      if (btn) {
+        btn.disabled = isLoading;
+        if (isLoading) {
+          btn.classList.add('opacity-50', 'pointer-events-none');
+        } else {
+          btn.classList.remove('opacity-50', 'pointer-events-none');
+        }
+      }
+    });
+
+    if (activeBtnId === 'btnGoogleAuth' && btnGoogleText) {
+      btnGoogleText.innerText = isLoading ? loadingText : 'CONTINUE WITH GOOGLE';
+    } else if (activeBtnId === 'guestAuthBtn' && btnGuestText) {
+      btnGuestText.innerText = isLoading ? loadingText : 'PLAY AS GUEST HERO (ANON MODE)';
+    } else if (btnEmailText) {
+      if (isLoading) {
+        btnEmailText.innerText = loadingText;
+      } else {
+        btnEmailText.innerText = this.authMode === 'register' ? 'FORGE NEW RECRUIT ACCOUNT' : 'INITIALIZE LOGIN';
+      }
+    }
+  },
+
+  navigateAfterAuth(user) {
+    // Isolated router destination for post-auth flow (Step 1: Archetype Class Selection)
+    this.navTo('screen-class-select');
+  },
+
+  async handleEmailAuthSubmit() {
+    this.hideAuthError();
+    const email = document.getElementById('authEmailInput')?.value?.trim();
+    const password = document.getElementById('authPasswordInput')?.value;
+    const displayName = document.getElementById('authDisplayNameInput')?.value?.trim();
+
+    if (!email || !password) {
+      this.showAuthError('Please provide both email cipher and access passphrase.');
+      return;
+    }
+
+    if (this.authMode === 'register') {
+      await this.signUpWithEmail(email, password, displayName);
+    } else {
+      await this.signInWithEmail(email, password);
+    }
+  },
+
   async signInWithGoogle() {
     soundEngine.playPowerup();
+    this.hideAuthError();
+    this.setAuthLoading(true, 'btnGoogleAuth', 'SYNCING GOOGLE NEURAL LINK...');
 
     try {
       const provider = new GoogleAuthProvider();
@@ -1217,6 +1346,7 @@ const app = {
           uid: user.uid,
           email: user.email,
           displayName: user.displayName,
+          isAnonymous: false,
           createdAt: serverTimestamp(),
           lastLoginAt: serverTimestamp()
         });
@@ -1226,79 +1356,93 @@ const app = {
         }, { merge: true });
       }
 
-      console.log("Google sign-in successful!");
-      console.log("UID:", user.uid);
-      console.log("Email:", user.email);
-      console.log("Name:", user.displayName);
+      console.log("Google sign-in successful! UID:", user.uid);
 
       this.setUserSession({
         uid: user.uid,
         email: user.email,
-        name: user.displayName
+        name: user.displayName || user.email,
+        photo: user.photoURL
       });
 
-      this.navTo('screen-class-select');
+      this.navigateAfterAuth(user);
 
     } catch (error) {
       console.error("Google sign-in failed:", error);
+      this.showAuthError(error);
+    } finally {
+      this.setAuthLoading(false, 'btnGoogleAuth');
     }
   },
 
-  async signUpWithEmail(email, password) {
+  async signUpWithEmail(email, password, displayName = '') {
     soundEngine.playPowerup();
+    this.hideAuthError();
+    this.setAuthLoading(true, 'btnEmailSubmit', 'FORGING ACCOUNT...');
 
     try {
       const result = await createUserWithEmailAndPassword(auth, email, password);
       const user = result.user;
-
       const userRef = doc(db, "users", user.uid);
 
       await setDoc(userRef, {
         uid: user.uid,
         email: user.email,
-        displayName: user.displayName,
+        displayName: displayName || user.displayName || email.split('@')[0],
+        isAnonymous: false,
         createdAt: serverTimestamp(),
         lastLoginAt: serverTimestamp()
       });
 
-      console.log("Email sign-up successful!");
-      console.log("UID:", user.uid);
-      console.log("Email:", user.email);
+      console.log("Email sign-up successful! UID:", user.uid);
 
       this.setUserSession({
         uid: user.uid,
         email: user.email,
-        name: user.displayName || user.email
+        name: displayName || user.displayName || user.email,
+        photo: null
       });
 
-      this.navTo('screen-class-select');
+      this.navigateAfterAuth(user);
 
     } catch (error) {
       console.error("Email sign-up failed:", error);
+      this.showAuthError(error);
+    } finally {
+      this.setAuthLoading(false, 'btnEmailSubmit');
     }
   },
 
   async signInWithEmail(email, password) {
     soundEngine.playPowerup();
+    this.hideAuthError();
+    this.setAuthLoading(true, 'btnEmailSubmit', 'VERIFYING CREDENTIALS...');
 
     try {
       const result = await signInWithEmailAndPassword(auth, email, password);
       const user = result.user;
+      const userRef = doc(db, "users", user.uid);
 
-      console.log("Email sign-in successful!");
-      console.log("UID:", user.uid);
-      console.log("Email:", user.email);
+      await setDoc(userRef, {
+        lastLoginAt: serverTimestamp()
+      }, { merge: true });
+
+      console.log("Email sign-in successful! UID:", user.uid);
 
       this.setUserSession({
         uid: user.uid,
         email: user.email,
-        name: user.displayName || user.email
+        name: user.displayName || user.email,
+        photo: user.photoURL || null
       });
 
-      this.navTo('screen-class-select');
+      this.navigateAfterAuth(user);
 
     } catch (error) {
       console.error("Email sign-in failed:", error);
+      this.showAuthError(error);
+    } finally {
+      this.setAuthLoading(false, 'btnEmailSubmit');
     }
   },
 
@@ -1309,18 +1453,31 @@ const app = {
     if (badge && img) {
       badge.classList.remove('hidden');
       badge.classList.add('flex');
-      img.src = user.photo;
+      img.src = user.photo || 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%23fbbf24"><path d="M12 2a5 5 0 1 0 5 5 5 5 0 0 0-5-5zm0 12c-5.33 0-8 2.67-8 4v2h16v-2c0-1.33-2.67-4-8-4z"/></svg>';
     }
     if (topHud) {
       topHud.classList.remove('hidden');
       topHud.classList.add('flex');
     }
-    document.getElementById('modalFbAuth').innerText = user.name;
+    const modalAuth = document.getElementById('modalFbAuth');
+    if (modalAuth) modalAuth.innerText = user.name;
   },
 
   async signOutUser() {
     try {
       await signOut(auth);
+      soundEngine.playBlip();
+      const badge = document.getElementById('userBadgeContainer');
+      const topHud = document.getElementById('topHeroHud');
+      if (badge) {
+        badge.classList.add('hidden');
+        badge.classList.remove('flex');
+      }
+      if (topHud) {
+        topHud.classList.add('hidden');
+        topHud.classList.remove('flex');
+      }
+      this.navTo('screen-title');
       console.log("Sign-out successful!");
     } catch (error) {
       console.error("Sign-out failed:", error);
@@ -1329,6 +1486,9 @@ const app = {
 
   async signInAsGuest() {
     soundEngine.playPowerup();
+    this.hideAuthError();
+    this.setAuthLoading(true, 'guestAuthBtn', 'ENTERING AS GUEST...');
+
     try {
       // Reuse an existing guest session so refreshes/clicks don't create new uids
       const user = auth.currentUser?.isAnonymous
@@ -1342,7 +1502,7 @@ const app = {
         await setDoc(userRef, {
           uid: user.uid,
           email: null,
-          displayName: "Guest",
+          displayName: "Guest Hero",
           isAnonymous: true,
           createdAt: serverTimestamp(),
           lastLoginAt: serverTimestamp()
@@ -1351,10 +1511,13 @@ const app = {
         await setDoc(userRef, { lastLoginAt: serverTimestamp() }, { merge: true });
       }
 
-      this.setUserSession({ uid: user.uid, name: "Guest", photo: null });
-      this.navTo('screen-class-select');
+      this.setUserSession({ uid: user.uid, name: "Guest Hero", photo: null });
+      this.navigateAfterAuth(user);
     } catch (error) {
       console.error("Guest sign-in failed:", error);
+      this.showAuthError(error);
+    } finally {
+      this.setAuthLoading(false, 'guestAuthBtn');
     }
   },
 
