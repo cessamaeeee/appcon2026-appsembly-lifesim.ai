@@ -2,6 +2,10 @@
 // LIFESIM.AI - THE MULTIVERSE ENGINE (PH EDITION)
 // CORE APPLICATION LOGIC: SOUND ENGINE, MODELS, SIMULATION & GEMINI AI
 // =========================================================================
+import { auth, db } from "../lib/firebase.ts";
+import { signInWithPopup, GoogleAuthProvider, createUserWithEmailAndPassword,
+  signInWithEmailAndPassword, signOut, signInAnonymously } from "firebase/auth";
+import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
 
 // --- 1. ZERO-DEPENDENCY 8-BIT SOUND SYNTHESIZER (Web Audio API) ---
 class RetroSoundEngine {
@@ -1198,24 +1202,104 @@ const app = {
     this.closeAdminModal();
   },
 
-  signInWithGoogle() {
+  async signInWithGoogle() {
     soundEngine.playPowerup();
-    const demoUser = {
-      name: 'Google Authenticated Hero',
-      photo: 'https://api.dicebear.com/7.x/bottts/svg?seed=LifeSimPH'
-    };
-    this.setUserSession(demoUser);
-    this.navTo('screen-class-select');
+
+    try {
+      const provider = new GoogleAuthProvider();
+      const result = await signInWithPopup(auth, provider);
+      const user = result.user;
+      const userRef = doc(db, "users", user.uid);
+      const userSnap = await getDoc(userRef);
+
+      if (!userSnap.exists()) {
+        await setDoc(userRef, {
+          uid: user.uid,
+          email: user.email,
+          displayName: user.displayName,
+          createdAt: serverTimestamp(),
+          lastLoginAt: serverTimestamp()
+        });
+      } else {
+        await setDoc(userRef, {
+          lastLoginAt: serverTimestamp()
+        }, { merge: true });
+      }
+
+      console.log("Google sign-in successful!");
+      console.log("UID:", user.uid);
+      console.log("Email:", user.email);
+      console.log("Name:", user.displayName);
+
+      this.setUserSession({
+        uid: user.uid,
+        email: user.email,
+        name: user.displayName
+      });
+
+      this.navTo('screen-class-select');
+
+    } catch (error) {
+      console.error("Google sign-in failed:", error);
+    }
   },
 
-  signInAsGuest() {
-    soundEngine.playSelect();
-    const guestUser = {
-      name: 'Guest Adventurer',
-      photo: 'https://api.dicebear.com/7.x/pixel-art/svg?seed=GuestHero'
-    };
-    this.setUserSession(guestUser);
-    this.navTo('screen-class-select');
+  async signUpWithEmail(email, password) {
+    soundEngine.playPowerup();
+
+    try {
+      const result = await createUserWithEmailAndPassword(auth, email, password);
+      const user = result.user;
+
+      const userRef = doc(db, "users", user.uid);
+
+      await setDoc(userRef, {
+        uid: user.uid,
+        email: user.email,
+        displayName: user.displayName,
+        createdAt: serverTimestamp(),
+        lastLoginAt: serverTimestamp()
+      });
+
+      console.log("Email sign-up successful!");
+      console.log("UID:", user.uid);
+      console.log("Email:", user.email);
+
+      this.setUserSession({
+        uid: user.uid,
+        email: user.email,
+        name: user.displayName || user.email
+      });
+
+      this.navTo('screen-class-select');
+
+    } catch (error) {
+      console.error("Email sign-up failed:", error);
+    }
+  },
+
+  async signInWithEmail(email, password) {
+    soundEngine.playPowerup();
+
+    try {
+      const result = await signInWithEmailAndPassword(auth, email, password);
+      const user = result.user;
+
+      console.log("Email sign-in successful!");
+      console.log("UID:", user.uid);
+      console.log("Email:", user.email);
+
+      this.setUserSession({
+        uid: user.uid,
+        email: user.email,
+        name: user.displayName || user.email
+      });
+
+      this.navTo('screen-class-select');
+
+    } catch (error) {
+      console.error("Email sign-in failed:", error);
+    }
   },
 
   setUserSession(user) {
@@ -1234,13 +1318,44 @@ const app = {
     document.getElementById('modalFbAuth').innerText = user.name;
   },
 
-  signOutUser() {
-    soundEngine.playBlip();
-    document.getElementById('userBadgeContainer').classList.add('hidden');
-    document.getElementById('userBadgeContainer').classList.remove('flex');
-    document.getElementById('topHeroHud').classList.add('hidden');
-    document.getElementById('topHeroHud').classList.remove('flex');
-    this.navTo('screen-title');
+  async signOutUser() {
+    try {
+      await signOut(auth);
+      console.log("Sign-out successful!");
+    } catch (error) {
+      console.error("Sign-out failed:", error);
+    }
+  },
+
+  async signInAsGuest() {
+    soundEngine.playPowerup();
+    try {
+      // Reuse an existing guest session so refreshes/clicks don't create new uids
+      const user = auth.currentUser?.isAnonymous
+        ? auth.currentUser
+        : (await signInAnonymously(auth)).user;
+
+      const userRef = doc(db, "users", user.uid);
+      const snap = await getDoc(userRef);
+
+      if (!snap.exists()) {
+        await setDoc(userRef, {
+          uid: user.uid,
+          email: null,
+          displayName: "Guest",
+          isAnonymous: true,
+          createdAt: serverTimestamp(),
+          lastLoginAt: serverTimestamp()
+        });
+      } else {
+        await setDoc(userRef, { lastLoginAt: serverTimestamp() }, { merge: true });
+      }
+
+      this.setUserSession({ uid: user.uid, name: "Guest", photo: null });
+      this.navTo('screen-class-select');
+    } catch (error) {
+      console.error("Guest sign-in failed:", error);
+    }
   },
 
   selectClass(classKey) {
@@ -1957,6 +2072,7 @@ Return ONLY the raw JSON object, without markdown formatting.`;
     });
   }
 };
+window.app = app;
 
 // Global Shortcut: Ctrl + Shift + 1 for Admin Gemini API Key Modal
 document.addEventListener('keydown', (e) => {
