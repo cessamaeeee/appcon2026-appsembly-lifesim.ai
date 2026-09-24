@@ -6,7 +6,9 @@ import { auth, db } from "../lib/firebase.ts";
 import { signInWithPopup, GoogleAuthProvider, createUserWithEmailAndPassword,
   signInWithEmailAndPassword, signOut, signInAnonymously } from "firebase/auth";
 import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
-import { calculateFallbackSimulation, sanitizeHeroState, SIMULATION_YEARS } from "./simulationEngine.js";
+import { calculateFallbackSimulation, buildDynamicCalculatedSimulation, sanitizeHeroState, SIMULATION_YEARS } from "./simulationEngine.js";
+import { ARCHETYPES, getArchetypes } from "./archetypeConfig.js";
+import { runSimulationPipeline, SIMULATION_TIMEOUT_MS } from "./simulationPipeline.js";
 
 // --- 1. ZERO-DEPENDENCY 8-BIT SOUND SYNTHESIZER (Web Audio API) ---
 class RetroSoundEngine {
@@ -567,99 +569,6 @@ let activeAiSimulationData = null;
 let whatIfVault = [];
 let activeWhatIfId = null;
 
-// Dynamic Algorithmic Synthesizer combining pure calculation engine with UI narrative enrichment
-function buildDynamicCalculatedSimulation(heroState, chosenPathway = 'Multiverse Pathway', scenarioKey = 'custom') {
-  const hero = sanitizeHeroState(heroState);
-  const location = heroState?.location || 'Metro Manila';
-  const className = heroState?.className || 'The Strategic Hero';
-  const isSandwich = hero.familyRemittance > 0 || hero.familySafetyNet === 'SandwichGen';
-
-  // 1. Execute pure calculation engine
-  const calculationResult = calculateFallbackSimulation(hero, scenarioKey, chosenPathway);
-  const simYears = calculationResult.years;
-
-  // 2. Attach UI narrative, phases, and curveball artifacts
-  SIMULATION_YEARS.forEach((yr, idx) => {
-    const monthlyIncome = simYears[yr].monthlyIncome;
-    const phases = [
-      `Phase 1: Groundwork & Setup in ${location}`,
-      `Phase 2: Transition & First Revenue Leap (₱${(monthlyIncome / 1000).toFixed(0)}k/mo)`,
-      `Phase 3: Asymmetric Scaling & Debt Elimination`,
-      `Phase 4: Sovereign Retainers & Family Fortress`,
-      `Phase 5: Financial Transcendence & Autonomy`
-    ];
-
-    const narratives = [
-      `Starting from ${location} as ${className}. You budget your ₱${hero.savings.toLocaleString()} initial safety net while managing ${isSandwich ? `₱${hero.familyRemittance.toLocaleString()}/mo family support` : 'personal living costs'}.`,
-      `Your ${hero.aiLeverage} skill leverage kicks in. Monthly income expands to ₱${monthlyIncome.toLocaleString()}, and debt burden is systematically crushed.`,
-      `The compound momentum of your network and skills takes hold. Living expenses remain disciplined, channeling surplus into Pag-IBIG MP2.`,
-      `You operate with full autonomy. Commute fatigue is fully eliminated, securing high-tier retainer clients across global markets.`,
-      `Sovereignty achieved. Monthly cashflow hits ₱${monthlyIncome.toLocaleString()}, yielding sustainable dividends and generational freedom for your family.`
-    ];
-
-    const curveballs = [
-      {
-        category: '⚡ Tech & Infrastructure Drift',
-        title: 'Workstation GPU & Connectivity Upgrade',
-        desc: `Hardware demands require ₱35,000 upgrade in ${location}. Covered by liquid buffer.`,
-        mitigation: 'Maintain 3 months emergency fund in digital banks (Maya/Seabank).'
-      },
-      {
-        category: '🏛️ Bureaucracy & Tax Optimization',
-        title: 'BIR Form 1701A (8% Flat Tax) Filing',
-        desc: 'Transitioning to 8% Gross Income Tax rate saves ₱80,000+ annually in income taxes.',
-        mitigation: 'Register books of accounts and issue electronic invoices on time.'
-      },
-      {
-        category: '🏥 Family Health Shield Activation',
-        title: 'Dependent Medical Emergency Test',
-        desc: `Family member health concern requires attention. Handled via ${hero.hmoShield} shield without depleting core capital.`,
-        mitigation: 'Maintain standalone HMO coverage for senior dependents.'
-      },
-      {
-        category: '📈 Macro Forex & Market Shift',
-        title: 'Global Contract Retainer Surge',
-        desc: 'Foreign client demand increases billing power by 25% due to high-speed AI output.',
-        mitigation: 'Lock in recurring retainers with milestone-based retainer agreements.'
-      },
-      {
-        category: '🏆 Sovereign Life Milestone',
-        title: 'Generational Independence Unlocked',
-        desc: `Net worth crosses landmark target. Passive yields cover 100% of family support and living costs.`,
-        mitigation: 'Diversify into conservative index assets and Pag-IBIG MP2.'
-      }
-    ];
-
-    simYears[yr].phase = phases[idx];
-    simYears[yr].narrative = narratives[idx];
-    simYears[yr].curveball = curveballs[idx];
-  });
-
-  return {
-    scenarioName: chosenPathway,
-    overallStrategicThesis: `AI Simulation for ${className} in ${location}: By choosing "${chosenPathway}", you leverage your ${hero.aiLeverage} capabilities and ${hero.socialCapital} network to overcome your ${isSandwich ? `₱${hero.familyRemittance.toLocaleString()}/mo family remittance obligation` : 'starting line limitations'}. Over 5 years, your income expands from ₱${hero.income.toLocaleString()}/mo to ₱${simYears['2030'].monthlyIncome.toLocaleString()}/mo while accumulating ₱${simYears['2030'].cumulativeSavings.toLocaleString()} in liquid wealth.`,
-    years: simYears,
-    quests: {
-      treasury: [
-        { id: 'q_t1', text: `Build emergency buffer of ₱${Math.round(hero.income * 3).toLocaleString()} in Maya/Seabank` },
-        { id: 'q_t2', text: `Automate monthly allocation into Pag-IBIG MP2 compounding fund` }
-      ],
-      skills: [
-        { id: 'q_s1', text: `Deploy Generative AI automation pipelines to 3x project delivery speed` },
-        { id: 'q_s2', text: `Build high-converting portfolio showcasing bespoke client case studies` }
-      ],
-      bureaucracy: [
-        { id: 'q_b1', text: `Register DTI/BIR Form 1701A (8% Flat Gross Income Tax)` },
-        { id: 'q_b2', text: `Maintain maximum voluntary SSS WISP Plus and PhilHealth contributions` }
-      ],
-      mana: [
-        { id: 'q_m1', text: `Enforce non-negotiable ergonomic workstation and sleep schedule` },
-        { id: 'q_m2', text: `Secure standalone health shield (HMO) for dependents` }
-      ]
-    }
-  };
-}
-
 // Master Live Gemini 1.5/2.0/3.6 Flash Multiverse Simulation Function
 async function generateFullAiSimulation(heroState, scenarioKey, customPrompt = '') {
   const apiKey = localStorage.getItem('lifesim_gemini_api_key');
@@ -1067,6 +976,13 @@ const app = {
       target.classList.remove('hidden');
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
+    if (screenId === 'screen-class-select') {
+      if (!this.archetypes || this.archetypes.length === 0) {
+        this.loadArchetypes();
+      } else {
+        this.renderArchetypeCards();
+      }
+    }
   },
 
   toggleCRT() {
@@ -1469,54 +1385,276 @@ const app = {
     }
   },
 
+  // Archetype Data State
+  archetypes: [],
+  selectedArchetypeId: 'corp_tank',
+
+  async loadArchetypes() {
+    try {
+      this.archetypes = await getArchetypes();
+    } catch (err) {
+      console.warn("Failed to load archetypes asynchronously, using fallback:", err);
+      this.archetypes = ARCHETYPES;
+    }
+    this.renderArchetypeCards();
+  },
+
+  renderArchetypeCards() {
+    const grid = document.getElementById('archetypeCardsGrid');
+    if (!grid) return;
+
+    const list = this.archetypes && this.archetypes.length > 0 ? this.archetypes : ARCHETYPES;
+
+    grid.innerHTML = list.map((arch, idx) => {
+      const isSelected = arch.id === this.selectedArchetypeId;
+      const keyNum = idx + 1;
+
+      // Color coding & formatting for 3 stat bars
+      const statBarsHtml = (arch.stats || []).map(stat => {
+        const pct = Math.min(100, Math.max(0, (stat.value / stat.max) * 100));
+        let barColor = 'bg-rpg-gold';
+        if (stat.color === 'rose' || stat.isNegative) {
+          barColor = 'bg-rose-500';
+        } else if (stat.color === 'mana') {
+          barColor = 'bg-sky-400';
+        } else if (stat.color === 'slate') {
+          barColor = 'bg-slate-500';
+        } else if (stat.color === 'gold') {
+          barColor = 'bg-rpg-gold';
+        }
+
+        const tagText = stat.tag ? ` <span class="text-[7px] text-slate-400 font-pixel">${stat.tag}</span>` : '';
+        const valueClass = stat.isNegative ? 'text-rose-400' : 'text-slate-200';
+
+        return `
+          <div>
+            <div class="flex justify-between items-center text-[8px] font-pixel mb-1">
+              <span class="text-slate-300 uppercase tracking-tight">${stat.label}</span>
+              <span class="${valueClass}">${stat.value} / ${stat.max}${tagText}</span>
+            </div>
+            <div class="w-full h-1.5 bg-slate-950 border border-slate-800 overflow-hidden">
+              <div class="h-full ${barColor} transition-all duration-300" style="width: ${pct}%"></div>
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      // Buffs & Debuffs badges
+      const buffsHtml = (arch.buffs || []).map(b => {
+        const text = typeof b === 'string' ? b : (b.text || '');
+        const isCyan = text.includes('USD ARBITRAGE') || text.includes('EQUITY');
+        const formatted = (text.startsWith('BUFF:') || text.startsWith('DEBUFF:') || text.includes('EQUITY')) 
+          ? text 
+          : `BUFF: ${text}`;
+        const borderClass = isCyan ? 'border-sky-400/80 text-sky-400' : 'border-rpg-gold/80 text-rpg-gold';
+        return `<span class="border ${borderClass} font-pixel text-[8px] px-1.5 py-0.5 whitespace-nowrap">${formatted}</span>`;
+      }).join('');
+
+      const debuffsHtml = (arch.debuffs || []).map(d => {
+        const text = typeof d === 'string' ? d : (d.text || '');
+        const isNeutral = text.includes('13TH MO');
+        const formatted = (text.startsWith('BUFF:') || text.startsWith('DEBUFF:') || text.includes('13TH MO')) 
+          ? text 
+          : `DEBUFF: ${text}`;
+        const borderClass = isNeutral ? 'border-slate-600 text-slate-400' : 'border-rose-500/80 text-rose-400';
+        return `<span class="border ${borderClass} font-pixel text-[8px] px-1.5 py-0.5 whitespace-nowrap">${formatted}</span>`;
+      }).join('');
+
+      // Financials layout
+      let financialsHtml = '';
+      if (arch.isSpecialFinancials) {
+        financialsHtml = `
+          <div class="grid grid-cols-2 gap-y-1 text-xs font-mono border-y border-slate-800/80 py-2.5 my-3">
+            <span class="text-slate-400 font-pixel text-[8px]">REVENUE:</span>
+            <span class="text-right text-slate-200 font-bold font-mono text-[11px]">${arch.revenueLabel || 'VARIABLE (MSME)'}</span>
+
+            <span class="text-slate-400 font-pixel text-[8px]">RUNWAY:</span>
+            <span class="text-right text-rpg-gold font-bold font-mono text-[11px]">${arch.runwayLabel || '₱350,000 (6.5 mos)'}</span>
+
+            <span class="text-slate-400 font-pixel text-[8px]">REGULATORY:</span>
+            <span class="text-right text-slate-300 font-mono text-[10px]">${arch.regulatoryLabel || 'SEC/BIR compliance'}</span>
+
+            <span class="text-slate-400 font-pixel text-[8px]">TEAM BURN:</span>
+            <span class="text-right text-slate-200 font-mono text-[10px]">${arch.teamBurnLabel || '₱45,000/mo OPEX'}</span>
+          </div>
+        `;
+      } else {
+        const earningColor = arch.id === 'agile_mage' ? 'text-sky-400' : 'text-rpg-gold';
+        const savingsColor = arch.id === 'novice_explorer' ? 'text-slate-200' : 'text-sky-400';
+        const commuteColor = arch.id === 'agile_mage' ? 'text-sky-400' : 'text-slate-200';
+
+        financialsHtml = `
+          <div class="grid grid-cols-2 gap-y-1 text-xs font-mono border-y border-slate-800/80 py-2.5 my-3">
+            <span class="text-slate-400 font-pixel text-[8px]">EARNING:</span>
+            <span class="text-right ${earningColor} font-bold font-mono text-[11px]">${arch.earningLabel || `₱${arch.earning.toLocaleString()}/mo`}</span>
+
+            <span class="text-slate-400 font-pixel text-[8px]">SAVINGS:</span>
+            <span class="text-right ${savingsColor} font-bold font-mono text-[11px]">${arch.savingsLabel || `₱${arch.savings.toLocaleString()}`}</span>
+
+            <span class="text-slate-400 font-pixel text-[8px]">COMMUTE:</span>
+            <span class="text-right ${commuteColor} font-mono text-[10px]">${arch.commuteLabel}</span>
+
+            <span class="text-slate-400 font-pixel text-[8px]">REMITTANCE:</span>
+            <span class="text-right text-slate-300 font-mono text-[10px]">${arch.remittanceLabel}</span>
+          </div>
+        `;
+      }
+
+      // Container styling
+      const cardContainerStyle = isSelected
+        ? 'border-4 border-rpg-gold bg-dungeon-800 shadow-brutal-gold'
+        : 'border-3 border-slate-800 hover:border-slate-600 bg-slate-950/90';
+
+      const statusBadge = isSelected
+        ? '<span class="font-pixel text-[9px] text-rpg-gold font-bold">[ACTIVE]</span>'
+        : '<span class="font-pixel text-[9px] text-slate-500">[STANDBY]</span>';
+
+      const actionButton = isSelected
+        ? `<button class="w-full py-2.5 bg-rpg-gold text-slate-950 font-bold border-2 border-slate-950 font-pixel text-[9px] flex items-center justify-center gap-1.5 shadow-brutal-sm cursor-default">
+             <i class="fa-solid fa-check"></i> SELECTED CLASS
+           </button>`
+        : `<button onclick="app.selectClass('${arch.id}')" class="w-full py-2.5 bg-slate-950 hover:bg-slate-900 text-sky-400 border-2 border-sky-500/70 hover:border-sky-400 font-pixel text-[9px] flex items-center justify-center gap-1.5 transition-all shadow-brutal-sm">
+             <i class="fa-solid fa-arrow-pointer"></i> SELECT ARCHETYPE
+           </button>`;
+
+      const recommendedBadgeHtml = arch.recommended
+        ? `<div class="absolute -top-3.5 right-4 bg-rpg-gold text-slate-950 px-2 py-0.5 font-pixel text-[8px] border-2 border-slate-950 shadow-brutal-sm font-bold uppercase tracking-wider">
+             ${arch.badgeText || '[RECOMMENDED TANK]'}
+           </div>`
+        : '';
+
+      return `
+        <div id="card-class-${arch.id}" class="class-card ${cardContainerStyle} relative p-4 flex flex-col justify-between transition-all cursor-pointer" onclick="app.selectClass('${arch.id}')">
+          ${recommendedBadgeHtml}
+          
+          <div>
+            <!-- Top Class Code + Active/Standby Indicator -->
+            <div class="flex items-center justify-between gap-2 mb-1.5">
+              <span class="font-pixel text-[9px] sm:text-[10px] text-sky-400 font-bold tracking-tight">
+                ${arch.classCode} // ${arch.archetype}
+              </span>
+              ${statusBadge}
+            </div>
+
+            <!-- Age & Location Subtitle -->
+            <div class="font-pixel text-[8px] text-slate-400 uppercase tracking-tight mb-1">
+              ${arch.ageRange} // ${arch.location}
+            </div>
+
+            <!-- Class Name Title -->
+            <h3 class="font-pixel text-xs sm:text-sm text-white tracking-wide mb-2 drop-shadow-[0_1px_0_#020617]">
+              ${arch.name}
+            </h3>
+
+            <!-- Financials Matrix -->
+            ${financialsHtml}
+
+            <!-- Buffs & Debuffs Badges -->
+            <div class="flex flex-wrap gap-1.5 my-3">
+              ${buffsHtml}
+              ${debuffsHtml}
+            </div>
+
+            <!-- 3 Stat Bars -->
+            <div class="space-y-2.5 mb-4">
+              ${statBarsHtml}
+            </div>
+          </div>
+
+          <!-- Bottom Action Button -->
+          <div class="pt-2">
+            ${actionButton}
+          </div>
+        </div>
+      `;
+    }).join('');
+  },
+
   selectClass(classKey) {
     soundEngine.playSelect();
-    document.querySelectorAll('.class-card').forEach(c => {
-      c.classList.remove('border-rpg-gold', 'bg-dungeon-800', 'shadow-brutal-gold');
-      c.classList.add('border-slate-950', 'bg-dungeon-900');
-    });
 
-    const selectedCard = document.getElementById(`card-class-${classKey}`);
-    if (selectedCard) {
-      selectedCard.classList.remove('border-slate-950', 'bg-dungeon-900');
-      selectedCard.classList.add('border-rpg-gold', 'bg-dungeon-800', 'shadow-brutal-gold');
+    // Map legacy alias to modern ID if applicable
+    const aliasMap = {
+      bpo: 'corp_tank',
+      freelancer: 'agile_mage',
+      freshgrad: 'novice_explorer',
+      custom: 'wildcard_rogue'
+    };
+    const resolvedId = aliasMap[classKey] || classKey;
+    this.selectedArchetypeId = resolvedId;
+
+    const list = this.archetypes && this.archetypes.length > 0 ? this.archetypes : ARCHETYPES;
+    const arch = list.find(a => a.id === resolvedId) || list[0];
+
+    // Populate hero state
+    hero.id = arch.id;
+    hero.className = arch.name;
+    hero.archetypeTitle = arch.archetype;
+    hero.income = arch.baseIncome || arch.earning || 45000;
+    hero.savings = arch.baseSavings || arch.savings || 120000;
+    hero.workSetup = arch.workSetup || 'On-Site';
+    hero.commuteHours = arch.commuteHours !== undefined ? arch.commuteHours : 3.5;
+    hero.guild = arch.guild || 'BPO';
+    hero.hmoShield = arch.hmoShield || 'Comprehensive';
+    hero.familySafetyNet = arch.familySafetyNet || 'SandwichGen';
+    hero.familyRemittance = arch.familyRemittance !== undefined ? arch.familyRemittance : 10000;
+    hero.aiLeverage = arch.aiLeverage || 'Traditional';
+    hero.socialCapital = arch.socialCapital || 'LoneWolf';
+    hero.learningVelocity = arch.learningVelocity || 'Steady';
+    hero.desireVector = arch.desireVector || 'DollarClients';
+    hero.riskStance = arch.riskStance || 'Paladin';
+
+    // Populate Character Sheet inputs for Step 2
+    const setVal = (id, val) => {
+      const el = document.getElementById(id);
+      if (el) el.value = val;
+    };
+    setVal('inputIncome', hero.income);
+    setVal('inputSavings', hero.savings);
+    setVal('inputWorkSetup', hero.workSetup);
+    setVal('inputCommute', hero.commuteHours);
+    setVal('inputGuild', hero.guild);
+    setVal('inputHmoShield', hero.hmoShield);
+    setVal('inputFamilySafetyNet', hero.familySafetyNet);
+    setVal('inputFamilyRemittance', hero.familyRemittance);
+    setVal('inputAiLeverage', hero.aiLeverage);
+    setVal('inputSocialCapital', hero.socialCapital);
+    setVal('inputLearningVelocity', hero.learningVelocity);
+    setVal('inputDesireVector', hero.desireVector);
+    setVal('inputRiskStance', hero.riskStance);
+
+    const classBadge = document.getElementById('selectedClassBadge');
+    if (classBadge) {
+      classBadge.innerText = arch.name.replace(/^THE\s+/i, '').toUpperCase();
     }
 
-    const template = CLASS_ARCHETYPES[classKey] || CLASS_ARCHETYPES.bpo;
-    hero.id = template.id;
-    hero.className = template.className;
-    hero.archetypeTitle = template.archetypeTitle;
-    hero.income = template.baseIncome;
-    hero.savings = template.baseSavings;
-    hero.workSetup = template.workSetup;
-    hero.commuteHours = template.commuteHours;
-    hero.guild = template.guild;
-    hero.hmoShield = template.hmoShield;
-    hero.familySafetyNet = template.familySafetyNet;
-    hero.familyRemittance = template.familyRemittance;
-    hero.aiLeverage = template.aiLeverage;
-    hero.socialCapital = template.socialCapital;
-    hero.learningVelocity = template.learningVelocity;
-    hero.desireVector = template.desireVector;
-    hero.riskStance = template.riskStance;
+    // Update Calibrate button label at bottom of Screen 2
+    const calibrateLabel = document.getElementById('btnCalibrateLabel');
+    if (calibrateLabel) {
+      const cleanName = arch.name.replace(/^THE\s+/i, '');
+      calibrateLabel.innerText = `CALIBRATE [${cleanName}]`;
+    }
 
-    // Populate Character Sheet inputs
-    document.getElementById('inputIncome').value = hero.income;
-    document.getElementById('inputSavings').value = hero.savings;
-    document.getElementById('inputWorkSetup').value = hero.workSetup;
-    document.getElementById('inputCommute').value = hero.commuteHours;
-    document.getElementById('inputGuild').value = hero.guild;
-    document.getElementById('inputHmoShield').value = hero.hmoShield;
-    document.getElementById('inputFamilySafetyNet').value = hero.familySafetyNet;
-    document.getElementById('inputFamilyRemittance').value = hero.familyRemittance;
-    document.getElementById('inputAiLeverage').value = hero.aiLeverage;
-    document.getElementById('inputSocialCapital').value = hero.socialCapital;
-    document.getElementById('inputLearningVelocity').value = hero.learningVelocity;
-    document.getElementById('inputDesireVector').value = hero.desireVector;
-    document.getElementById('inputRiskStance').value = hero.riskStance;
-    document.getElementById('selectedClassBadge').innerText = hero.className.toUpperCase();
+    // Re-render cards to reflect selected state
+    this.renderArchetypeCards();
+  },
 
-    document.getElementById('btnProceedToSheet').disabled = false;
+  selectClassByKey(num) {
+    const keyMap = {
+      1: 'corp_tank',
+      2: 'agile_mage',
+      3: 'novice_explorer',
+      4: 'wildcard_rogue'
+    };
+    const targetId = keyMap[num];
+    if (targetId) {
+      this.selectClass(targetId);
+    }
+  },
+
+  proceedToCalibration() {
+    soundEngine.playLevelUp();
+    this.navTo('screen-character-sheet');
   },
 
   saveCharacterSheet(e) {
@@ -1745,66 +1883,188 @@ Return ONLY the raw JSON object, without markdown formatting.`;
     if (btn) btn.disabled = false;
   },
 
+  loadingRiftInterval: null,
+
+  startLoadingRiftAnimation(pathwayTitle, heroState) {
+    if (this.loadingRiftInterval) {
+      clearInterval(this.loadingRiftInterval);
+      this.loadingRiftInterval = null;
+    }
+
+    const titleEl = document.getElementById('portalLoadingScenarioTitle');
+    const heroNameEl = document.getElementById('telemetryHeroName');
+    const heroIncomeEl = document.getElementById('telemetryHeroIncome');
+    const heroSavingsEl = document.getElementById('telemetryHeroSavings');
+    const heroAiEl = document.getElementById('telemetryHeroAi');
+    const log1 = document.getElementById('terminalLog1');
+    const log2 = document.getElementById('terminalLog2');
+    const log3 = document.getElementById('terminalLog3');
+    const statusText = document.getElementById('portalActiveStatusText');
+    const progressBar = document.getElementById('portalProgressBar');
+    const progressStep = document.getElementById('portalProgressStepText');
+    const progressPct = document.getElementById('portalProgressPct');
+
+    if (titleEl) titleEl.innerText = `SIMULATING TIMELINE: ${pathwayTitle.toUpperCase()}`;
+    if (heroNameEl) heroNameEl.innerText = heroState.className || hero.className;
+    if (heroIncomeEl) heroIncomeEl.innerText = `₱${Math.round((heroState.income || hero.income) / 1000)}k/mo`;
+    if (heroSavingsEl) heroSavingsEl.innerText = `₱${Math.round((heroState.savings || hero.savings) / 1000)}k`;
+    if (heroAiEl) heroAiEl.innerText = heroState.aiLeverage || hero.aiLeverage;
+
+    const isSandwich = (heroState.familyRemittance || hero.familyRemittance) > 0 || (heroState.familySafetyNet || hero.familySafetyNet) === 'SandwichGen';
+
+    const phases = [
+      {
+        step: 'PHASE 1/5: INITIALIZING RIFT PROTOCOL',
+        status: 'INITIALIZING MULTIVERSE RIFT PROTOCOL...',
+        pct: 20,
+        log1: `> [00.1s] Telemetry link established for ${heroState.className || hero.className}...`,
+        log2: `> [00.3s] Respawn Zone: ${heroState.location || hero.location} (Base: ₱${(heroState.income || hero.income).toLocaleString()}/mo)...`,
+        log3: `> [00.6s] Ingesting Starting Line privilege and family safety net matrix...`
+      },
+      {
+        step: 'PHASE 2/5: PHILIPPINE ECONOMIC CALIBRATION',
+        status: 'CALIBRATING PHILIPPINE ECONOMIC REALITIES (BIR 8% & INFLATION)...',
+        pct: 42,
+        log1: `> [00.9s] Optimizing BIR Form 1701A (8% Flat Gross Income Tax) brackets...`,
+        log2: `> [01.2s] ${isSandwich ? `Factoring ₱${(heroState.familyRemittance || hero.familyRemittance).toLocaleString()}/mo family remittance drain...` : 'Zero parental remittance burden confirmed...'}`,
+        log3: `> [01.5s] Computing daily EDSA/transit fatigue penalty (${heroState.commuteHours || hero.commuteHours}h/day)...`
+      },
+      {
+        step: 'PHASE 3/5: EQUALIZER VECTOR INTEGRATION',
+        status: 'SYNCING EQUALIZER FACTORS (AI LEVERAGE & NETWORK MULTIPLIERS)...',
+        pct: 65,
+        log1: `> [01.8s] Applying AI Leverage Multiplier: ${heroState.aiLeverage || hero.aiLeverage}...`,
+        log2: `> [02.1s] Channeling Social Capital Network: ${heroState.socialCapital || hero.socialCapital}...`,
+        log3: `> [02.4s] Health Shield: ${heroState.hmoShield || hero.hmoShield} coverage armed against medical curveballs...`
+      },
+      {
+        step: 'PHASE 4/5: 5-YEAR COMPOUNDING & MP2 FORECASTING',
+        status: 'COMPOUNDING PAG-IBIG MP2 & 5-YEAR WEALTH TRAJECTORIES...',
+        pct: 85,
+        log1: `> [02.7s] Simulating 10,000 Monte Carlo outcome distributions (2026-2030)...`,
+        log2: `> [03.0s] Compounding Pag-IBIG MP2 dividend yields (~7.0% p.a.)...`,
+        log3: `> [03.3s] Synthesizing 5-year yearly cashflows & localized curveballs...`
+      },
+      {
+        step: 'PHASE 5/5: ACTION QUESTS & DECREE SYNTHESIS',
+        status: 'SYNTHESIZING PARALLEL DESTINY DECREE & ACTION QUESTS...',
+        pct: 94,
+        log1: `> [03.6s] Formulating tactical quests across Treasury, Skills, Bureaucracy, Mana...`,
+        log2: `> [03.9s] Converging parallel probability nodes into coherent life trajectory...`,
+        log3: `> [04.2s] Timeline convergence verified. Preparing Dashboard telemetry...`
+      }
+    ];
+
+    let currentPhaseIndex = 0;
+
+    const renderPhase = (p) => {
+      soundEngine.playBlip();
+      if (progressStep) progressStep.innerText = p.step;
+      if (statusText) statusText.innerText = `> ${p.status}`;
+      if (progressPct) progressPct.innerText = `${p.pct}%`;
+      if (progressBar) progressBar.style.width = `${p.pct}%`;
+      if (log1) log1.innerText = p.log1;
+      if (log2) log2.innerText = p.log2;
+      if (log3) log3.innerText = p.log3;
+    };
+
+    renderPhase(phases[0]);
+
+    this.loadingRiftInterval = setInterval(() => {
+      currentPhaseIndex = currentPhaseIndex + 1;
+      if (currentPhaseIndex < phases.length) {
+        renderPhase(phases[currentPhaseIndex]);
+      } else {
+        if (progressBar) progressBar.style.width = '96%';
+        if (progressPct) progressPct.innerText = '96%';
+        if (statusText) {
+          const cyclingPhrases = [
+            'COMPILING MULTIVERSE DATA...',
+            'FINALIZING SOVEREIGN CASHFLOW MATRIX...',
+            'CALIBRATING TIMELINE TRAJECTORIES...',
+            'SYNTHESIZING GEMINI AI FORESIGHT...'
+          ];
+          const randomPhrase = cyclingPhrases[Math.floor(Math.random() * cyclingPhrases.length)];
+          statusText.innerText = `> ${randomPhrase}`;
+        }
+      }
+    }, 1800);
+  },
+
+  stopLoadingRiftAnimation() {
+    if (this.loadingRiftInterval) {
+      clearInterval(this.loadingRiftInterval);
+      this.loadingRiftInterval = null;
+    }
+  },
+
   async enterPortal(scenarioKey, customPrompt = '') {
     activeScenarioKey = scenarioKey;
-    const scenarioNames = {
-      tech: 'IT & Cybersecurity Cloud Consulting',
-      nomad: 'Coastal Provincial Remote WFH',
-      corp: 'Independent High-Leverage PH Business',
-      custom: customPrompt || 'Bespoke Multiverse Pathway'
+    const pathwayNames = {
+      tech: 'Shift to High-Income IT, Cloud & Cybersecurity Consulting',
+      nomad: 'Relocate to Coastal Province on 100% Asynchronous WFH',
+      corp: 'Launch an Independent High-Leverage Philippine Business Venture',
+      custom: customPrompt || 'Custom Strategic Multiverse Pathway'
     };
-    const pathwayTitle = scenarioNames[scenarioKey] || customPrompt || 'Custom Multiverse Timeline';
+    const pathwayTitle = pathwayNames[scenarioKey] || customPrompt || 'Bespoke Multiverse Pathway';
     soundEngine.playDoorHum();
 
     this.navTo('screen-portal-loading');
-    document.getElementById('portalLoadingScenarioTitle').innerText = `GEMINI AI SIMULATING TIMELINE: ${pathwayTitle.toUpperCase()}`;
+    this.startLoadingRiftAnimation(pathwayTitle, hero);
 
-    const isSandwich = hero.familySafetyNet === 'SandwichGen' || hero.familyRemittance > 0;
-    const sandwichLog = isSandwich ? `Factoring ₱${hero.familyRemittance.toLocaleString()}/mo family remittance drag...` : 'Zero family remittance burden...';
-    const activeModel = localStorage.getItem('lifesim_gemini_model') || 'gemini-3.6-flash';
+    // Run simulation pipeline in parallel with minimum dwell duration (2.2s)
+    const minDwellPromise = new Promise(resolve => setTimeout(resolve, 2200));
 
-    const logs = [
-      { t: 0, l1: `> Opening timeline rift with ${activeModel}...`, l2: `> Sending Hero baseline (Income: ₱${hero.income.toLocaleString()}/mo | Savings: ₱${hero.savings.toLocaleString()})...`, l3: `> ${sandwichLog}`, p: '30%' },
-      { t: 1000, l1: `> Computing Equalizer velocity: AI Leverage (${hero.aiLeverage}) + Social Capital (${hero.socialCapital})...`, l2: `> Health Shield: ${hero.hmoShield} | Commute: ${hero.commuteHours}h/day...`, l3: `> Synthesizing 2026-2030 yearly cashflows & localized curveballs...`, p: '65%' },
-      { t: 2200, l1: `> Converging 5-Year Philippine probability distribution nodes...`, l2: `> Compounding Pag-IBIG MP2 and sovereign cashflow matrix...`, l3: `> Complete AI Multiverse Generated! Launching Dashboard...`, p: '100%' }
-    ];
-
-    logs.forEach(step => {
-      setTimeout(() => {
-        soundEngine.playBlip();
-        document.getElementById('terminalLog1').innerText = step.l1;
-        document.getElementById('terminalLog2').innerText = step.l2;
-        document.getElementById('terminalLog3').innerText = step.l3;
-        document.getElementById('portalProgressBar').style.width = step.p;
-      }, step.t);
-    });
-
-    // Launch Full Live AI Simulation
-    const aiSimPromise = generateFullAiSimulation(hero, scenarioKey, customPrompt);
-
+    let simResult;
     try {
-      activeAiSimulationData = await aiSimPromise;
+      const [result] = await Promise.all([
+        runSimulationPipeline(hero, scenarioKey, customPrompt, generateFullAiSimulation),
+        minDwellPromise
+      ]);
+      simResult = result;
     } catch (err) {
-      console.warn("AI Simulation encountered error, using dynamic calculated engine:", err);
-      activeAiSimulationData = buildDynamicCalculatedSimulation(hero, pathwayTitle, scenarioKey);
+      console.warn("Simulation pipeline encountered error, generating fallback simulation:", err);
+      simResult = buildDynamicCalculatedSimulation(hero, pathwayTitle, scenarioKey);
     }
 
-    // Save into What-If Vault
-    activeAiSimulationData.id = 'whatif_' + Date.now();
-    activeAiSimulationData.createdAt = new Date().toLocaleTimeString('en-PH', { hour: '2-digit', minute: '2-digit' });
-    activeAiSimulationData.heroName = hero.className;
-    activeAiSimulationData.heroAge = hero.age;
-    activeAiSimulationData.scenarioKey = scenarioKey;
-    activeWhatIfId = activeAiSimulationData.id;
+    this.stopLoadingRiftAnimation();
 
-    // Check if timeline with same title exists, update it or prepend
-    const existingIndex = whatIfVault.findIndex(v => v.scenarioName === activeAiSimulationData.scenarioName);
+    // Finalize Loading UI visual state
+    const progressBar = document.getElementById('portalProgressBar');
+    const progressPct = document.getElementById('portalProgressPct');
+    const progressStep = document.getElementById('portalProgressStepText');
+    const statusText = document.getElementById('portalActiveStatusText');
+    const log3 = document.getElementById('terminalLog3');
+
+    if (progressBar) progressBar.style.width = '100%';
+    if (progressPct) progressPct.innerText = '100%';
+    if (progressStep) progressStep.innerText = 'PARALLEL DESTINY SYNTHESIZED!';
+    if (statusText) statusText.innerText = '> TIMELINE COMPLETE! ENTERING DESTINY DASHBOARD...';
+    if (log3) log3.innerText = `> [COMPLETE] ${simResult.isAiGenerated ? '✨ Gemini AI Multiverse Generated!' : '⚡ Localized Engine Trajectory Calculated!'}`;
+
+    // Attach metadata
+    simResult.id = 'whatif_' + Date.now();
+    simResult.createdAt = new Date().toLocaleTimeString('en-PH', { hour: '2-digit', minute: '2-digit' });
+    simResult.heroName = hero.className;
+    simResult.heroAge = hero.age;
+    simResult.scenarioKey = scenarioKey;
+
+    // Save into shared state and sessionStorage / localStorage
+    activeAiSimulationData = simResult;
+    activeWhatIfId = simResult.id;
+    try {
+      sessionStorage.setItem('lifesim_active_simulation', JSON.stringify(simResult));
+    } catch (e) {}
+
+    const existingIndex = whatIfVault.findIndex(v => v.scenarioName === simResult.scenarioName);
     if (existingIndex >= 0) {
-      whatIfVault[existingIndex] = activeAiSimulationData;
+      whatIfVault[existingIndex] = simResult;
     } else {
-      whatIfVault.unshift(activeAiSimulationData);
+      whatIfVault.unshift(simResult);
     }
-    localStorage.setItem('lifesim_whatif_vault', JSON.stringify(whatIfVault));
+    try {
+      localStorage.setItem('lifesim_whatif_vault', JSON.stringify(whatIfVault));
+    } catch (e) {}
 
     setTimeout(() => {
       soundEngine.playLevelUp();
@@ -1813,7 +2073,7 @@ Return ONLY the raw JSON object, without markdown formatting.`;
       timelineEngine.setYear(2026);
       timelineEngine.initCharts();
       this.navTo('screen-dashboard');
-    }, 2800);
+    }, 450);
   },
 
   renderWhatIfSwitcher() {
@@ -2185,16 +2445,36 @@ Return ONLY the raw JSON object, without markdown formatting.`;
 };
 window.app = app;
 
-// Global Shortcut: Ctrl + Shift + 1 for Admin Gemini API Key Modal
+// Global Shortcuts (Gemini Admin Modal & Archetype Keypad 1-4 / Enter)
 document.addEventListener('keydown', (e) => {
+  // Admin Gemini API Key Modal Shortcut (Ctrl + Shift + 1)
   if (e.ctrlKey && e.shiftKey && (e.key === '1' || e.key === '!' || e.code === 'Digit1')) {
     e.preventDefault();
     app.openAdminModal();
+    return;
+  }
+
+  // Ignore single-key shortcuts when typing in inputs/textareas/selects
+  const activeTag = document.activeElement ? document.activeElement.tagName.toLowerCase() : '';
+  if (activeTag === 'input' || activeTag === 'textarea' || activeTag === 'select') {
+    return;
+  }
+
+  // Archetype Select Screen Keypad Shortcuts (1, 2, 3, 4 and Enter)
+  const classSelectScreen = document.getElementById('screen-class-select');
+  if (classSelectScreen && !classSelectScreen.classList.contains('hidden')) {
+    if (['1', '2', '3', '4'].includes(e.key)) {
+      e.preventDefault();
+      app.selectClassByKey(parseInt(e.key));
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      app.proceedToCalibration();
+    }
   }
 });
 
-// Initial Console Announcement & What-If Vault Hydration
-document.addEventListener('DOMContentLoaded', () => {
+// Initial Console Announcement, What-If Vault Hydration & Archetype Loading
+document.addEventListener('DOMContentLoaded', async () => {
   try {
     const saved = localStorage.getItem('lifesim_whatif_vault');
     if (saved) {
@@ -2208,5 +2488,6 @@ document.addEventListener('DOMContentLoaded', () => {
     whatIfVault = [];
   }
   app.renderWhatIfSwitcher();
-  console.log('🚀 LifeSim.ai Multiverse Engine Loaded with Persistent What-If Vault & Gemini AI Synthesis!');
+  await app.loadArchetypes();
+  console.log('🚀 LifeSim.ai Multiverse Engine Loaded with Persistent What-If Vault & Archetype Config!');
 });
