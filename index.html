@@ -1,0 +1,2114 @@
+<!DOCTYPE html>
+<html lang="en" class="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LIFESIM.AI // Philippine Multiverse Engine v2.4</title>
+  <meta name="description" content="Cyberpunk Retro RPG Multiverse Life Simulator for Filipino Professionals.">
+  
+  <!-- Google Fonts: Retro RPG & Neo-Brutalist Monospace Typography -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700;900&family=JetBrains+Mono:wght@400;500;600;700;800&family=Press+Start+2P&display=swap" rel="stylesheet">
+
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <!-- Font Awesome 6 Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  
+  <!-- Chart.js CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- Canvas Confetti CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.2/dist/confetti.browser.min.js"></script>
+
+  <!-- Firebase App & Auth SDK (v9 compat) -->
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+
+  <!-- Tailwind Configuration -->
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            pixel: ['"Press Start 2P"', 'monospace'],
+            mono: ['"JetBrains Mono"', 'monospace'],
+            fantasy: ['Cinzel', 'serif']
+          },
+          colors: {
+            dungeon: {
+              950: '#060911',
+              900: '#0a0f1d',
+              850: '#0e1526',
+              800: '#141d33',
+              750: '#1a243d',
+              700: '#1e2b4a',
+              600: '#2d3e66'
+            },
+            rpg: {
+              gold: '#fbbf24',
+              emerald: '#10b981',
+              mana: '#38bdf8',
+              arcane: '#818cf8',
+              void: '#c084fc',
+              rose: '#f43f5e',
+              amber: '#f59e0b'
+            }
+          },
+          boxShadow: {
+            'brutal-sm': '2px 2px 0px 0px #020617',
+            'brutal': '3px 3px 0px 0px #020617',
+            'brutal-lg': '5px 5px 0px 0px #020617',
+            'brutal-gold': '3px 3px 0px 0px #d97706',
+            'brutal-cyan': '3px 3px 0px 0px #0284c7',
+            'brutal-emerald': '3px 3px 0px 0px #059669',
+            'brutal-purple': '3px 3px 0px 0px #7c3aed',
+            'brutal-rose': '3px 3px 0px 0px #e11d48'
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- External Stylesheet -->
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body class="bg-slate-50 dark:bg-dungeon-950 text-slate-900 dark:text-slate-100 font-mono min-h-screen overflow-x-hidden selection:bg-amber-400 selection:text-slate-950 dungeon-grid relative pb-20">
+
+  <!-- ========================================================================= -->
+  <!-- 1. TOP GLOBAL NAVIGATION HEADER                                           -->
+  <!-- ========================================================================= -->
+  <header class="sticky top-0 z-40 bg-white/95 dark:bg-dungeon-900/95 backdrop-blur border-b border-slate-200 dark:border-slate-900 px-4 py-2 shadow-sm dark:shadow-brutal">
+    <div class="max-w-7xl mx-auto flex items-center justify-between">
+      
+      <!-- Brand & Version -->
+      <div class="flex items-center space-x-3">
+        <div onclick="app.navTo('screen-title', 'Sanctum')" class="flex items-center gap-2 cursor-pointer group">
+          <span class="text-rpg-gold text-sm">■</span>
+          <span class="font-pixel text-xs sm:text-sm font-bold text-white tracking-wider group-hover:text-rpg-gold transition-colors">
+            LIFESIM<span class="text-rpg-gold">.AI</span>
+          </span>
+        </div>
+        
+        <span class="hidden md:inline-block px-1.5 py-0.5 bg-dungeon-950 border border-slate-800 text-[10px] text-rpg-mana font-mono">
+          v2.4_PH
+        </span>
+      </div>
+
+      <!-- Center Navigation Tabs -->
+      <nav class="flex items-center space-x-3 sm:space-x-7 text-xs font-mono font-medium">
+        <button id="navTabSanctum" onclick="app.navTo('screen-title', 'Sanctum')" class="nav-tab-link text-slate-400 hover:text-white pb-1 active">
+          Sanctum
+        </button>
+        <button id="navTabArchetype" onclick="app.navTo('screen-class-select', 'Archetype')" class="nav-tab-link text-slate-400 hover:text-white pb-1">
+          Archetype
+        </button>
+        <button id="navTabCalibration" onclick="app.navTo('screen-character-sheet', 'Calibration')" class="nav-tab-link text-slate-400 hover:text-white pb-1">
+          Calibration
+        </button>
+        <button id="navTabMultiverse" onclick="app.navTo('screen-dashboard', 'Multiverse')" class="nav-tab-link text-slate-400 hover:text-white pb-1">
+          Multiverse
+        </button>
+        <button id="navTabQuestLog" onclick="app.navTo('screen-quest-tracker', 'Quest Log')" class="nav-tab-link text-slate-400 hover:text-white pb-1">
+          Quest Log
+        </button>
+      </nav>
+
+      <!-- Right Utility Controls & User Auth Indicator -->
+      <div class="flex items-center space-x-2 sm:space-x-3">
+        <!-- SFX Toggle -->
+        <button id="soundToggleBtn" onclick="soundEngine.toggle()" class="text-slate-400 hover:text-rpg-gold p-1 text-xs" title="Toggle Sound FX">
+          <i id="soundIcon" class="fa-solid fa-volume-high text-rpg-emerald"></i>
+        </button>
+
+        <!-- Theme Toggle (Light / Dark) -->
+        <button id="themeToggleBtn" onclick="app.toggleTheme()" class="text-slate-600 dark:text-slate-400 hover:text-amber-500 p-1 text-xs font-mono flex items-center gap-1.5 bg-slate-100 dark:bg-dungeon-950 border border-slate-300 dark:border-slate-800 px-2 shadow-sm" title="Toggle Light / Dark Mode">
+          <i id="themeIcon" class="fa-solid fa-moon text-indigo-600 dark:text-amber-400"></i>
+          <span id="themeLabel" class="text-[10px] font-bold">DARK</span>
+        </button>
+
+        <!-- Admin / AI Settings -->
+        <button onclick="app.openAdminModal()" class="text-slate-400 hover:text-rpg-void p-1 text-xs" title="Gemini AI Config (Ctrl+Shift+1)">
+          <i class="fa-solid fa-sliders"></i>
+        </button>
+
+        <!-- User Auth Profile Container (Dynamic Guest vs Google) -->
+        <div id="headerAuthContainer" class="flex items-center"></div>
+
+        <!-- Vault Modal Button -->
+        <button onclick="app.openWhatIfVaultModal()" class="btn-brutal px-2.5 py-1 bg-rpg-gold hover:bg-amber-400 text-slate-950 font-bold text-xs font-mono flex items-center gap-1" title="What-If Multiverse Vault [ESC]">
+          <span>[ESC] Vault (<span id="headerVaultCount">0</span>)</span>
+        </button>
+      </div>
+
+    </div>
+  </header>
+
+  <!-- ========================================================================= -->
+  <!-- 2. MAIN APPLICATION VIEWPORT CONTAINER                                    -->
+  <!-- ========================================================================= -->
+  <main class="max-w-7xl mx-auto px-4 py-6">
+
+    <!-- ======================================================================= -->
+    <!-- SCREEN 0: SANCTUM / TITLE SCREEN (Auth & Perks Comparison)              -->
+    <!-- ======================================================================= -->
+    <section id="screen-title" class="screen-view active max-w-4xl mx-auto my-4 text-center space-y-6">
+      <div class="bg-dungeon-900 border border-slate-800 p-6 sm:p-10 shadow-brutal-lg relative overflow-hidden">
+        <div class="absolute -top-24 -left-24 w-64 h-64 bg-sky-600/10 rounded-full blur-3xl pointer-events-none"></div>
+        <div class="absolute -bottom-24 -right-24 w-64 h-64 bg-rpg-gold/10 rounded-full blur-3xl pointer-events-none"></div>
+
+        <div class="flex justify-center items-center gap-3 text-rpg-gold text-2xl mb-2">
+          <i class="fa-solid fa-dice-d20 text-rpg-mana text-3xl"></i>
+        </div>
+
+        <p class="font-mono text-xs text-rpg-mana tracking-widest uppercase mb-1">
+          ■ MANILA METRO PROTOCOL // V2.4_PH
+        </p>
+
+        <h1 class="font-pixel text-2xl sm:text-4xl text-white tracking-tight leading-relaxed mb-3">
+          LIFESIM<span class="text-rpg-gold">.AI</span>
+        </h1>
+
+        <p class="font-mono text-xs sm:text-sm text-slate-300 max-w-xl mx-auto mb-6 leading-relaxed">
+          Calibrated to modern Philippine professional realities: Sandwich remittances, EDSA commute drains, BIR 8% flat-rate taxes, and AI output leverage.
+        </p>
+
+        <!-- Current User Profile / Action Strip -->
+        <div id="sanctumUserStatusBox" class="max-w-2xl mx-auto mb-6"></div>
+
+        <!-- Side-by-Side Comparison: Guest vs Google Verified -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-2xl mx-auto text-left font-mono text-xs">
+          <!-- Guest Perks -->
+          <div class="bg-dungeon-950 border border-slate-800 p-4 space-y-2">
+            <div class="flex items-center justify-between text-slate-400 border-b border-slate-800 pb-1.5">
+              <span class="font-bold uppercase text-white flex items-center gap-1.5">
+                <i class="fa-solid fa-user-ninja text-amber-400"></i> GUEST HERO
+              </span>
+              <span class="text-[9px] text-amber-400 font-bold">[STANDARD ENGINE]</span>
+            </div>
+            <ul class="space-y-1.5 text-[11px] text-slate-400">
+              <li class="flex items-center gap-1.5"><i class="fa-solid fa-lock text-amber-500"></i> <span class="text-slate-300">Live Gemini AI Locked</span> (Standard Math Engine)</li>
+              <li class="flex items-center gap-1.5"><i class="fa-solid fa-check text-slate-500"></i> Local browser session (resets on clear)</li>
+              <li class="flex items-center gap-1.5"><i class="fa-solid fa-check text-slate-500"></i> Max 2 What-If Vault timeline saves</li>
+              <li class="flex items-center gap-1.5"><i class="fa-solid fa-triangle-exclamation text-amber-500"></i> Watermarked action scrolls</li>
+            </ul>
+          </div>
+
+          <!-- Google Hero Perks -->
+          <div class="bg-dungeon-950 border-2 border-emerald-500/80 p-4 space-y-2 shadow-brutal-emerald">
+            <div class="flex items-center justify-between text-emerald-300 border-b border-slate-800 pb-1.5">
+              <span class="font-bold uppercase text-white flex items-center gap-1.5">
+                <i class="fa-brands fa-google text-rpg-gold"></i> VERIFIED GOOGLE HERO
+              </span>
+              <span class="text-[9px] bg-emerald-950 text-emerald-400 px-1 border border-emerald-500 font-bold">[AI UNLOCKED]</span>
+            </div>
+            <ul class="space-y-1.5 text-[11px] text-slate-200">
+              <li class="flex items-center gap-1.5"><i class="fa-solid fa-sparkles text-rpg-gold font-bold"></i> <strong class="text-rpg-gold">Live Gemini 2.5 AI Analysis</strong> & 5-Yr Multiverse</li>
+              <li class="flex items-center gap-1.5"><i class="fa-solid fa-check text-rpg-emerald font-bold"></i> <strong>Unlimited Cloud Synced</strong> What-If Vault</li>
+              <li class="flex items-center gap-1.5"><i class="fa-solid fa-check text-rpg-emerald font-bold"></i> Official Gold Seal Certificate (#PH-2026-HERO)</li>
+              <li class="flex items-center gap-1.5"><i class="fa-solid fa-check text-rpg-emerald font-bold"></i> Firebase Google Auth & Cloud Storage</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ======================================================================= -->
+    <!-- SCREEN 1: ARCHETYPE SELECT (Streamlined & Clean)                         -->
+    <!-- ======================================================================= -->
+    <section id="screen-class-select" class="screen-view hidden max-w-7xl mx-auto space-y-5">
+      
+      <!-- Top Title Banner -->
+      <div class="flex flex-col md:flex-row md:items-start justify-between gap-4">
+        <div>
+          <div class="text-[10px] text-rpg-gold font-mono font-bold tracking-wider mb-0.5">
+            ■ MANILA METRO PROTOCOL // STEP 01
+          </div>
+          <h1 class="text-2xl sm:text-3xl font-extrabold text-rpg-gold font-mono tracking-tight uppercase">
+            SELECT YOUR HERO ARCHETYPE
+          </h1>
+          <p class="text-xs sm:text-sm text-slate-400 font-mono mt-1 max-w-2xl leading-relaxed">
+            Choose your starting socioeconomic class calibrated to Philippine costs of living, traffic, and taxation.
+          </p>
+        </div>
+
+        <!-- Tax Status Badge Box -->
+        <div class="shrink-0 bg-dungeon-900 border border-slate-800 p-2.5 shadow-brutal flex items-center gap-3">
+          <div class="w-7 h-7 bg-sky-950/80 border border-rpg-mana flex items-center justify-center text-rpg-mana text-xs">
+            <i class="fa-solid fa-shield"></i>
+          </div>
+          <div class="font-mono">
+            <div class="text-[9px] text-slate-400 uppercase tracking-wider">TAX CODE</div>
+            <div class="text-xs font-bold text-rpg-gold">BIR 2316 / 8% GROSS</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 3 Archetype Cards Grid -->
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+
+        <!-- ==================== CLASS 01: THE BPO NIGHT OWL ==================== -->
+        <div class="relative pt-2.5 flex flex-col">
+          <div class="absolute top-0 right-3 z-10 px-2 py-0.5 bg-rpg-gold text-slate-950 font-bold font-mono text-[9px] border border-slate-950 shadow-sm">
+            RECOMMENDED
+          </div>
+
+          <div id="card-class-bpo" onclick="app.selectClass('bpo')" class="class-card group bg-dungeon-900 border-2 border-rpg-gold p-4 flex-1 flex flex-col justify-between cursor-pointer transition-all shadow-brutal-gold">
+            <div>
+              <div class="flex items-center justify-between text-[10px] font-mono mb-1.5">
+                <span class="text-rpg-mana font-bold">CORPORATE TANK</span>
+                <span id="statusTag-bpo" class="text-rpg-gold font-bold">[ACTIVE]</span>
+              </div>
+
+              <div class="text-[10px] text-slate-400 font-mono uppercase mb-1">
+                24-32 YRS // EASTWOOD & BGC
+              </div>
+
+              <h3 class="text-sm font-bold text-white font-mono uppercase tracking-tight mb-2.5">
+                THE BPO NIGHT OWL
+              </h3>
+
+              <div class="space-y-1 text-xs font-mono py-2 border-y border-slate-800 mb-2.5 bg-dungeon-950/70 px-2.5">
+                <div class="flex justify-between items-center">
+                  <span class="text-slate-400 text-[11px]">EARNING:</span>
+                  <span class="font-bold text-rpg-gold">₱45,000<span class="text-[10px] text-slate-400">/mo</span></span>
+                </div>
+                <div class="flex justify-between items-center">
+                  <span class="text-slate-400 text-[11px]">SAVINGS:</span>
+                  <span class="font-bold text-rpg-mana">₱120,000</span>
+                </div>
+                <div class="flex justify-between items-center">
+                  <span class="text-slate-400 text-[11px]">COMMUTE:</span>
+                  <span class="text-slate-200">3.5 hrs EDSA</span>
+                </div>
+                <div class="flex justify-between items-center">
+                  <span class="text-slate-400 text-[11px]">REMITTANCE:</span>
+                  <span class="text-slate-300">₱10,000 family</span>
+                </div>
+              </div>
+
+              <div class="flex flex-wrap gap-1 mb-3 text-[9px] font-mono">
+                <span class="px-1.5 py-0.5 border border-rpg-gold/60 text-rpg-gold bg-amber-950/30">
+                  BUFF: HMO+DEPENDENTS
+                </span>
+                <span class="px-1.5 py-0.5 border border-rpg-rose/60 text-rose-400 bg-rose-950/30">
+                  DEBUFF: NIGHT COMMUTE
+                </span>
+              </div>
+
+              <div class="space-y-1.5 text-[10px] font-mono mb-3">
+                <div>
+                  <div class="flex justify-between text-slate-400 mb-0.5">
+                    <span>HP / RESILIENCE</span>
+                    <span class="text-slate-200">85 / 100</span>
+                  </div>
+                  <div class="stat-bar-track"><div class="stat-bar-fill-yellow" style="width: 85%;"></div></div>
+                </div>
+
+                <div>
+                  <div class="flex justify-between text-slate-400 mb-0.5">
+                    <span>FREE TIME</span>
+                    <span class="text-slate-200">20 / 100</span>
+                  </div>
+                  <div class="stat-bar-track"><div class="stat-bar-fill-cyan" style="width: 20%;"></div></div>
+                </div>
+
+                <div>
+                  <div class="flex justify-between text-slate-400 mb-0.5">
+                    <span>BURNOUT STRESS</span>
+                    <span class="text-rose-400 font-bold">82 / 100</span>
+                  </div>
+                  <div class="stat-bar-track"><div class="stat-bar-fill-rose" style="width: 82%;"></div></div>
+                </div>
+              </div>
+            </div>
+
+            <button id="btnClass-bpo" class="w-full py-1.5 bg-rpg-gold text-slate-950 font-bold font-mono text-xs uppercase flex items-center justify-center gap-1.5 border border-slate-950 shadow-sm">
+              <i class="fa-solid fa-check text-xs"></i>
+              <span>SELECTED CLASS</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- ==================== CLASS 02: THE HUSTLING FREELANCER ==================== -->
+        <div class="relative pt-2.5 flex flex-col">
+          <div id="card-class-freelancer" onclick="app.selectClass('freelancer')" class="class-card group bg-dungeon-900 border border-slate-800 hover:border-rpg-mana p-4 flex-1 flex flex-col justify-between cursor-pointer transition-all shadow-brutal">
+            <div>
+              <div class="flex items-center justify-between text-[10px] font-mono mb-1.5">
+                <span class="text-rpg-mana font-bold">AGILE MAGE</span>
+                <span id="statusTag-freelancer" class="text-slate-400 font-bold">[STANDBY]</span>
+              </div>
+
+              <div class="text-[10px] text-slate-400 font-mono uppercase mb-1">
+                22-35 YRS // REMOTE WFA
+              </div>
+
+              <h3 class="text-sm font-bold text-white font-mono uppercase tracking-tight mb-2.5">
+                THE HUSTLING FREELANCER
+              </h3>
+
+              <div class="space-y-1 text-xs font-mono py-2 border-y border-slate-800 mb-2.5 bg-dungeon-950/70 px-2.5">
+                <div class="flex justify-between items-center">
+                  <span class="text-slate-400 text-[11px]">EARNING:</span>
+                  <span class="font-bold text-rpg-mana">₱65,000<span class="text-[10px] text-slate-400">($1.2k)</span></span>
+                </div>
+                <div class="flex justify-between items-center">
+                  <span class="text-slate-400 text-[11px]">SAVINGS:</span>
+                  <span class="font-bold text-rpg-gold">₱180,000</span>
+                </div>
+                <div class="flex justify-between items-center">
+                  <span class="text-slate-400 text-[11px]">COMMUTE:</span>
+                  <span class="text-slate-200">0.0 hrs (Home WFA)</span>
+                </div>
+                <div class="flex justify-between items-center">
+                  <span class="text-slate-400 text-[11px]">REMITTANCE:</span>
+                  <span class="text-slate-300">₱5,000 flexible</span>
+                </div>
+              </div>
+
+              <div class="flex flex-wrap gap-1 mb-3 text-[9px] font-mono">
+                <span class="px-1.5 py-0.5 border border-rpg-mana/60 text-rpg-mana bg-sky-950/30">
+                  BUFF: USD ARBITRAGE
+                </span>
+                <span class="px-1.5 py-0.5 border border-slate-700 text-slate-400 bg-dungeon-950">
+                  NO 13TH MO PAY
+                </span>
+              </div>
+
+              <div class="space-y-1.5 text-[10px] font-mono mb-3">
+                <div>
+                  <div class="flex justify-between text-slate-400 mb-0.5">
+                    <span>AUTONOMY</span>
+                    <span class="text-rpg-mana font-bold">90 / 100</span>
+                  </div>
+                  <div class="stat-bar-track"><div class="stat-bar-fill-cyan" style="width: 90%;"></div></div>
+                </div>
+
+                <div>
+                  <div class="flex justify-between text-slate-400 mb-0.5">
+                    <span>CASH VOLATILITY</span>
+                    <span class="text-rose-400 font-bold">78 / 100</span>
+                  </div>
+                  <div class="stat-bar-track"><div class="stat-bar-fill-rose" style="width: 78%;"></div></div>
+                </div>
+
+                <div>
+                  <div class="flex justify-between text-slate-400 mb-0.5">
+                    <span>BENEFITS & HMO</span>
+                    <span class="text-slate-400">25 / 100</span>
+                  </div>
+                  <div class="stat-bar-track"><div class="stat-bar-fill-dim" style="width: 25%;"></div></div>
+                </div>
+              </div>
+            </div>
+
+            <button id="btnClass-freelancer" class="w-full py-1.5 bg-transparent hover:bg-sky-950/40 text-rpg-mana font-bold font-mono text-xs uppercase flex items-center justify-center gap-1.5 border border-rpg-mana">
+              <i class="fa-solid fa-bolt text-xs"></i>
+              <span>SELECT ARCHETYPE</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- ==================== CLASS 03: THE FRESH GRAD ==================== -->
+        <div class="relative pt-2.5 flex flex-col">
+          <div id="card-class-freshgrad" onclick="app.selectClass('freshgrad')" class="class-card group bg-dungeon-900 border border-slate-800 hover:border-rpg-mana p-4 flex-1 flex flex-col justify-between cursor-pointer transition-all shadow-brutal">
+            <div>
+              <div class="flex items-center justify-between text-[10px] font-mono mb-1.5">
+                <span class="text-rpg-mana font-bold">NOVICE EXPLORER</span>
+                <span id="statusTag-freshgrad" class="text-slate-400 font-bold">[STANDBY]</span>
+              </div>
+
+              <div class="text-[10px] text-slate-400 font-mono uppercase mb-1">
+                20-24 YRS // MAKATI COMMUTE
+              </div>
+
+              <h3 class="text-sm font-bold text-white font-mono uppercase tracking-tight mb-2.5">
+                THE FRESH GRAD
+              </h3>
+
+              <div class="space-y-1 text-xs font-mono py-2 border-y border-slate-800 mb-2.5 bg-dungeon-950/70 px-2.5">
+                <div class="flex justify-between items-center">
+                  <span class="text-slate-400 text-[11px]">EARNING:</span>
+                  <span class="font-bold text-slate-200">₱24,000<span class="text-[10px] text-slate-400">/mo</span></span>
+                </div>
+                <div class="flex justify-between items-center">
+                  <span class="text-slate-400 text-[11px]">SAVINGS:</span>
+                  <span class="font-bold text-slate-200">₱30,000</span>
+                </div>
+                <div class="flex justify-between items-center">
+                  <span class="text-slate-400 text-[11px]">COMMUTE:</span>
+                  <span class="text-slate-200">3.0 hrs Jeep/MRT</span>
+                </div>
+                <div class="flex justify-between items-center">
+                  <span class="text-slate-400 text-[11px]">REMITTANCE:</span>
+                  <span class="text-slate-300">₱3,000 share</span>
+                </div>
+              </div>
+
+              <div class="flex flex-wrap gap-1 mb-3 text-[9px] font-mono">
+                <span class="px-1.5 py-0.5 border border-rpg-gold/60 text-rpg-gold bg-amber-950/30">
+                  BUFF: FAST ADAPT
+                </span>
+                <span class="px-1.5 py-0.5 border border-rose-500/60 text-rose-400 bg-rose-950/30">
+                  DEBUFF: LOW CAPITAL
+                </span>
+              </div>
+
+              <div class="space-y-1.5 text-[10px] font-mono mb-3">
+                <div>
+                  <div class="flex justify-between text-slate-400 mb-0.5">
+                    <span>GROWTH POTENTIAL</span>
+                    <span class="text-rpg-gold font-bold">95 / 100</span>
+                  </div>
+                  <div class="stat-bar-track"><div class="stat-bar-fill-yellow" style="width: 95%;"></div></div>
+                </div>
+
+                <div>
+                  <div class="flex justify-between text-slate-400 mb-0.5">
+                    <span>BUFFER POOL</span>
+                    <span class="text-slate-400">15 / 100</span>
+                  </div>
+                  <div class="stat-bar-track"><div class="stat-bar-fill-dim" style="width: 15%;"></div></div>
+                </div>
+
+                <div>
+                  <div class="flex justify-between text-slate-400 mb-0.5">
+                    <span>CAREER AUTONOMY</span>
+                    <span class="text-slate-400">30 / 100</span>
+                  </div>
+                  <div class="stat-bar-track"><div class="stat-bar-fill-dim" style="width: 30%;"></div></div>
+                </div>
+              </div>
+            </div>
+
+            <button id="btnClass-freshgrad" class="w-full py-1.5 bg-transparent hover:bg-sky-950/40 text-rpg-mana font-bold font-mono text-xs uppercase flex items-center justify-center gap-1.5 border border-rpg-mana">
+              <i class="fa-solid fa-bolt text-xs"></i>
+              <span>SELECT ARCHETYPE</span>
+            </button>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Prominent Custom Hero Callout Banner -->
+      <div class="bg-purple-50 dark:bg-gradient-to-r dark:from-purple-950/70 dark:via-dungeon-900 dark:to-sky-950/60 border-2 border-purple-400 dark:border-purple-500/70 p-3.5 shadow-brutal-purple flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs font-mono">
+        <div class="flex items-center gap-3">
+          <div class="w-9 h-9 bg-purple-100 dark:bg-purple-950 border border-purple-300 dark:border-purple-400 flex items-center justify-center text-purple-700 dark:text-purple-300 text-base shrink-0">
+            <i class="fa-solid fa-wand-magic-sparkles"></i>
+          </div>
+          <div>
+            <div class="font-bold text-purple-950 dark:text-white flex items-center gap-2">
+              <span>WANT TO INPUT YOUR EXACT REALITY?</span>
+              <span class="text-[9px] bg-purple-100 dark:bg-purple-900 text-purple-800 dark:text-purple-300 border border-purple-300 dark:border-purple-500 px-1.5 py-0.5 uppercase font-bold">[CUSTOM ALLOWED]</span>
+            </div>
+            <p class="text-purple-900 dark:text-slate-300 text-[11px] mt-0.5">
+              You are not locked into presets! Calibrate your exact salary, sandwich remittances, debt loans, HMO armor, and AI multiplier in Step 02.
+            </p>
+          </div>
+        </div>
+        <button type="button" onclick="app.selectClass('custom'); app.navTo('screen-character-sheet', 'Calibration');" class="btn-brutal px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white font-bold font-mono text-xs border border-slate-950 shadow-sm whitespace-nowrap flex items-center gap-1.5 self-start sm:self-auto">
+          <i class="fa-solid fa-sparkles text-xs"></i>
+          <span>CRAFT CUSTOM HERO →</span>
+        </button>
+      </div>
+
+      <!-- Bottom Action Bar -->
+      <div class="pt-3 flex flex-col md:flex-row items-center justify-between gap-3 border-t border-slate-900">
+        <!-- Direct Keypad Select -->
+        <div class="flex items-center gap-2 text-xs font-mono text-slate-400">
+          <span class="text-rpg-mana font-bold">KEYPAD:</span>
+          <div class="flex items-center gap-1">
+            <button onclick="app.selectClass('bpo')" class="keypad-badge">1</button>
+            <button onclick="app.selectClass('freelancer')" class="keypad-badge">2</button>
+            <button onclick="app.selectClass('freshgrad')" class="keypad-badge">3</button>
+          </div>
+          <span class="text-slate-500">|</span>
+          <span class="text-slate-400">↵ ENTER TO LOCK</span>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="flex items-center gap-3">
+          <button onclick="app.selectClass('custom'); app.navTo('screen-character-sheet', 'Calibration');" class="btn-brutal px-4 py-2 bg-purple-950 hover:bg-purple-900 text-purple-300 border-2 border-purple-500 font-bold font-mono text-xs flex items-center gap-1.5 shadow-brutal-purple">
+            <i class="fa-solid fa-sparkles text-xs"></i>
+            <span>CUSTOM BUILDER [C]</span>
+          </button>
+
+          <button id="btnProceedToSheet" onclick="app.navTo('screen-character-sheet', 'Calibration')" class="btn-brutal px-5 py-2 bg-rpg-gold hover:bg-amber-400 text-slate-950 font-bold font-mono text-xs border border-slate-950 flex items-center gap-2 shadow-brutal-gold">
+            <span id="btnProceedLabel">CALIBRATE [BPO NIGHT OWL]</span>
+            <i class="fa-solid fa-arrow-right"></i>
+          </button>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- ======================================================================= -->
+    <!-- SCREEN 2: CALIBRATION & EQUALIZERS (Clean & Streamlined)                -->
+    <!-- ======================================================================= -->
+    <section id="screen-character-sheet" class="screen-view hidden max-w-7xl mx-auto space-y-5">
+      
+      <!-- Top Section Header -->
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-900 pb-3">
+        <div>
+          <div class="text-[10px] text-rpg-gold font-mono font-bold tracking-wider mb-0.5">
+            MODULE // CORE EQUALIZER
+          </div>
+          <h2 class="text-xl sm:text-2xl font-bold text-white font-mono uppercase tracking-tight">
+            STEP 02 // HERO REALITY CALIBRATION
+          </h2>
+          <p class="text-xs text-slate-400 font-mono mt-0.5">
+            Input your actual socioeconomic baseline to calibrate the 5-year simulation engine.
+          </p>
+        </div>
+        <div class="shrink-0 bg-dungeon-900 border border-slate-800 px-3 py-1.5 flex items-center gap-2 text-xs font-mono">
+          <i class="fa-solid fa-circle-nodes text-rpg-mana"></i>
+          <span class="text-slate-400">REALITY COHERENCE:</span>
+          <span class="text-rpg-mana font-bold">94.2% SYNCH</span>
+        </div>
+      </div>
+
+      <!-- Bayanihan Copilot Quick Presets Bar -->
+      <div class="bg-dungeon-900 border border-slate-800 p-3 shadow-brutal-sm">
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-2.5 mb-2">
+          <div class="flex items-center gap-2">
+            <i class="fa-solid fa-wand-magic-sparkles text-rpg-mana text-sm"></i>
+            <span class="text-xs font-bold text-rpg-mana uppercase font-mono tracking-wide">BAYANIHAN COPILOT // RAPID PRESETS</span>
+          </div>
+          <button type="button" onclick="app.openAiHeroAnalysisModal()" class="btn-brutal px-3 py-1 bg-sky-950 hover:bg-sky-900 text-rpg-mana border border-rpg-mana font-bold font-mono text-[11px] flex items-center gap-1.5 self-start md:self-auto">
+            <i class="fa-solid fa-sparkles"></i>
+            <span>AI ANALYZE HERO & DRAFT DESIRE</span>
+          </button>
+        </div>
+
+        <!-- Quick Inject Presets -->
+        <div class="flex flex-wrap items-center gap-2 text-[11px] font-mono">
+          <span class="text-slate-500 uppercase text-[10px]">PRESETS:</span>
+          <button type="button" onclick="app.applyQuickPreset('bpo_graveyard')" class="px-2.5 py-0.5 bg-dungeon-950 border border-slate-800 hover:border-rpg-mana text-slate-300 hover:text-white">
+            + BPO Graveyard Tank
+          </button>
+          <button type="button" onclick="app.applyQuickPreset('ortigas_sandwich')" class="px-2.5 py-0.5 bg-dungeon-950 border border-slate-800 hover:border-rpg-mana text-slate-300 hover:text-white">
+            + Ortigas Dev (Sandwich Gen)
+          </button>
+          <button type="button" onclick="app.applyQuickPreset('cebu_va')" class="px-2.5 py-0.5 bg-dungeon-950 border border-slate-800 hover:border-rpg-mana text-slate-300 hover:text-white">
+            + Cebu Freelance VA
+          </button>
+          <button type="button" onclick="app.applyQuickPreset('siargao_nomad')" class="px-2.5 py-0.5 bg-dungeon-950 border border-slate-800 hover:border-rpg-mana text-slate-300 hover:text-white">
+            + Provincial Digital Nomad
+          </button>
+        </div>
+      </div>
+
+      <!-- Pillar Tab Navigation & View Mode Toggle Bar -->
+      <div class="bg-dungeon-950 border border-slate-800 p-2 flex flex-col md:flex-row md:items-center justify-between gap-2 shadow-sm font-mono text-xs">
+        <!-- 4 Pillar Tabs -->
+        <div class="flex flex-wrap items-center gap-1.5">
+          <button type="button" id="tabPillar-1" onclick="app.switchPillarTab(1)" class="pillar-tab-btn active-pillar px-3 py-1.5 font-bold flex items-center gap-1.5 border border-rpg-gold bg-dungeon-900 text-rpg-gold">
+            <span class="text-rpg-gold">01</span>
+            <span>CORE BASELINE</span>
+          </button>
+          <button type="button" id="tabPillar-2" onclick="app.switchPillarTab(2)" class="pillar-tab-btn px-3 py-1.5 font-bold flex items-center gap-1.5 border border-slate-800 bg-dungeon-950 text-slate-400 hover:text-white">
+            <span class="text-slate-500">02</span>
+            <span>WORK & COMMUTE</span>
+          </button>
+          <button type="button" id="tabPillar-3" onclick="app.switchPillarTab(3)" class="pillar-tab-btn px-3 py-1.5 font-bold flex items-center gap-1.5 border border-slate-800 bg-dungeon-950 text-slate-400 hover:text-white">
+            <span class="text-slate-500">03</span>
+            <span>DEBTS & HMO</span>
+          </button>
+          <button type="button" id="tabPillar-4" onclick="app.switchPillarTab(4)" class="pillar-tab-btn px-3 py-1.5 font-bold flex items-center gap-1.5 border border-slate-800 bg-dungeon-950 text-slate-400 hover:text-white">
+            <span class="text-slate-500">04</span>
+            <span>AI & NORTH STAR</span>
+          </button>
+        </div>
+
+        <!-- View Mode Toggle: Focused Tabs vs All 4 Grid -->
+        <div class="flex items-center gap-2 self-end md:self-auto">
+          <button type="button" id="btnTogglePillarsView" onclick="app.togglePillarsViewMode()" class="px-3 py-1.5 text-[11px] bg-dungeon-900 hover:bg-slate-800 text-slate-300 border border-slate-700 flex items-center gap-1.5 font-mono">
+            <i id="iconTogglePillarsView" class="fa-solid fa-table-cells-large text-rpg-mana"></i>
+            <span id="labelTogglePillarsView">VIEW ALL 4 (GRID)</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- 4 Pillars Form (Focused by Default, or Grid Toggle) -->
+      <form id="characterSheetForm" onsubmit="app.saveCharacterSheet(event)">
+        <div id="pillarsContainer" class="space-y-4">
+
+          <!-- ==================== PILLAR 01: CORE REALITY BASELINE ==================== -->
+          <div id="pillarSection-1" class="pillar-section bg-dungeon-900 border border-slate-800 p-5 sm:p-6 shadow-brutal flex flex-col justify-between space-y-4">
+            <div>
+              <div class="flex items-center justify-between border-b border-slate-800 pb-2.5 mb-4">
+                <div class="flex items-center gap-2 text-sm font-bold text-white uppercase font-mono">
+                  <span class="text-rpg-gold">■</span>
+                  <span>PILLAR 01 // CORE REALITY BASELINE</span>
+                </div>
+                <span class="text-xs text-rpg-gold font-mono uppercase bg-amber-950/40 px-2 py-0.5 border border-amber-900/60">SOCIO-ECONOMIC ANCHOR</span>
+              </div>
+
+              <!-- Row 1: Age & Location -->
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+                <div>
+                  <label class="block text-[11px] font-mono text-slate-400 uppercase mb-1">HERO AGE</label>
+                  <div class="flex items-center bg-dungeon-950 border border-slate-800 px-3.5 py-2">
+                    <input type="number" id="inputAge" min="18" max="65" value="26" onchange="app.recalcCalibrationTelemetry()" class="w-full bg-transparent text-white font-mono text-xs focus:outline-none">
+                    <span class="text-[11px] text-slate-400 font-mono font-bold">YRS</span>
+                  </div>
+                </div>
+
+                <div>
+                  <label class="block text-[11px] font-mono text-slate-400 uppercase mb-1">LOCATION ANCHOR</label>
+                  <select id="inputLocation" onchange="app.recalcCalibrationTelemetry()" class="w-full bg-dungeon-950 border border-slate-800 px-3.5 py-2 text-white font-mono text-xs focus:outline-none cursor-pointer">
+                    <option value="Metro Manila (NCR)" selected>Metro Manila (NCR)</option>
+                    <option value="Cebu IT Park">Cebu IT Park</option>
+                    <option value="Davao City">Davao City</option>
+                    <option value="Siargao / La Union">Siargao / La Union</option>
+                    <option value="Bulacan / Pampanga">Bulacan / Pampanga</option>
+                    <option value="Iloilo / Bacolod">Iloilo / Bacolod</option>
+                  </select>
+                </div>
+              </div>
+
+              <!-- Row 2: Gross Income & Cash Savings -->
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+                <div>
+                  <div class="flex justify-between text-[11px] font-mono mb-1">
+                    <span class="text-slate-400 uppercase">MONTHLY INCOME</span>
+                    <span class="text-rpg-mana font-bold">[ACTIVE GROSS]</span>
+                  </div>
+                  <div class="flex items-center bg-dungeon-950 border border-slate-800 px-3.5 py-2">
+                    <span class="text-rpg-gold font-bold mr-1.5 text-sm">₱</span>
+                    <input type="number" id="inputIncome" min="10000" step="1000" value="45000" oninput="app.recalcCalibrationTelemetry()" class="w-full bg-transparent text-white font-mono text-xs focus:outline-none font-bold">
+                    <span class="text-[11px] text-slate-400 font-mono font-bold">/MO</span>
+                  </div>
+                </div>
+
+                <div>
+                  <div class="flex justify-between text-[11px] font-mono mb-1">
+                    <span class="text-slate-400 uppercase">CASH SAVINGS BUFFER</span>
+                    <span id="runwayHpLabel" class="text-rpg-gold font-bold">2.7 MO RUNWAY</span>
+                  </div>
+                  <div class="flex items-center bg-dungeon-950 border border-slate-800 px-3.5 py-2">
+                    <span class="text-rpg-gold font-bold mr-1.5 text-sm">₱</span>
+                    <input type="number" id="inputSavings" min="0" step="5000" value="120000" oninput="app.recalcCalibrationTelemetry()" class="w-full bg-transparent text-white font-mono text-xs focus:outline-none font-bold">
+                    <span class="text-[11px] text-slate-400 font-mono font-bold">PHP</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Row 3: Remittance & Dependents -->
+              <div class="bg-dungeon-950 border border-slate-800 p-3.5 space-y-2.5">
+                <div class="flex items-center justify-between">
+                  <span class="text-[11px] font-mono text-slate-400 uppercase">FAMILIAL OBLIGATIONS & REMITTANCES</span>
+                  <span class="text-[9px] text-rose-400 font-mono border border-rose-900/60 px-1.5 py-0.5 bg-rose-950/40 font-bold">BREADWINNER DEFENSE</span>
+                </div>
+
+                <label class="flex items-center gap-2.5 cursor-pointer text-xs font-mono text-white">
+                  <input type="checkbox" id="chkSandwichGen" checked onchange="app.toggleSandwichGenCheck(this.checked)" class="w-4 h-4 accent-amber-400">
+                  <span class="text-slate-200">Sandwich Generation - Supporting Parents / Siblings</span>
+                </label>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                  <div>
+                    <span class="text-[10px] font-mono text-slate-400 block mb-1">MONTHLY REMITTANCE</span>
+                    <div class="flex items-center bg-dungeon-900 border border-slate-800 px-3 py-1.5">
+                      <span class="text-rose-400 font-bold mr-1.5">₱</span>
+                      <input type="number" id="inputFamilyRemittance" value="10000" step="500" oninput="app.recalcCalibrationTelemetry()" class="w-full bg-transparent text-white font-mono text-xs focus:outline-none">
+                    </div>
+                  </div>
+
+                  <div>
+                    <span class="text-[10px] font-mono text-slate-400 block mb-1">NUMBER OF DEPENDENTS</span>
+                    <div class="flex items-center justify-between bg-dungeon-900 border border-slate-800 px-3 py-1.5">
+                      <button type="button" onclick="app.adjustDependents(-1)" class="px-2.5 py-0.5 text-slate-400 hover:text-white font-bold font-mono">-</button>
+                      <span id="dependentsVal" class="font-bold font-mono text-xs text-white">2</span>
+                      <button type="button" onclick="app.adjustDependents(1)" class="px-2.5 py-0.5 text-slate-400 hover:text-white font-bold font-mono">+</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Focused Mode Sub-stepper Action -->
+            <div class="pillar-stepper-bar flex justify-end pt-2 border-t border-slate-800">
+              <button type="button" onclick="app.switchPillarTab(2)" class="btn-brutal px-5 py-2 bg-sky-950 hover:bg-sky-900 text-rpg-mana border border-rpg-mana font-bold font-mono text-xs flex items-center gap-1.5">
+                <span>NEXT: WORK & COMMUTE (2/4)</span>
+                <i class="fa-solid fa-arrow-right text-xs"></i>
+              </button>
+            </div>
+          </div>
+
+          <!-- ==================== PILLAR 02: WORK ENVIRONMENT & DRAIN ==================== -->
+          <div id="pillarSection-2" class="pillar-section hidden bg-dungeon-900 border border-slate-800 p-5 sm:p-6 shadow-brutal flex flex-col justify-between space-y-4">
+            <div>
+              <div class="flex items-center justify-between border-b border-slate-800 pb-2.5 mb-4">
+                <div class="flex items-center gap-2 text-sm font-bold text-white uppercase font-mono">
+                  <span class="text-rpg-mana">■</span>
+                  <span>PILLAR 02 // WORK ENVIRONMENT & DRAIN</span>
+                </div>
+                <span class="text-xs text-rpg-mana font-mono uppercase bg-sky-950/40 px-2 py-0.5 border border-sky-900/60">METABOLIC COST</span>
+              </div>
+
+              <!-- Work Setup Matrix -->
+              <div class="mb-4">
+                <label class="block text-[11px] font-mono text-slate-400 uppercase mb-1.5">WORK SETUP</label>
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs font-mono">
+                  <button type="button" id="btnSetup-OnSite" onclick="app.setWorkSetup('On-Site')" class="matrix-btn py-2 px-2 text-center text-[11px]">
+                    On-Site
+                  </button>
+                  <button type="button" id="btnSetup-Hybrid" onclick="app.setWorkSetup('Hybrid')" class="matrix-btn active-yellow py-2 px-2 text-center text-[11px]">
+                    Hybrid
+                  </button>
+                  <button type="button" id="btnSetup-Remote" onclick="app.setWorkSetup('Remote')" class="matrix-btn py-2 px-2 text-center text-[11px]">
+                    100% Remote
+                  </button>
+                  <button type="button" id="btnSetup-Graveyard" onclick="app.setWorkSetup('Graveyard')" class="matrix-btn py-2 px-2 text-center text-[11px]">
+                    Graveyard Shift
+                  </button>
+                </div>
+              </div>
+
+              <!-- Commute Siphon Visual Slider & Meter -->
+              <div class="bg-dungeon-950 border border-slate-800 p-3.5 mb-4 space-y-2">
+                <div class="flex justify-between items-center text-xs font-mono">
+                  <span class="text-[11px] text-slate-400 uppercase">COMMUTE DRAIN (EDSA / MRT / JEEP)</span>
+                  <span id="commuteDisplayVal" class="text-rpg-gold font-bold text-xs">3.5 HRS / DAY</span>
+                </div>
+
+                <input type="range" id="inputCommuteRange" min="0" max="6" step="0.5" value="3.5" oninput="app.onCommuteSlider(this.value)" class="retro-slider w-full">
+
+                <div class="flex justify-between text-[10px] font-mono text-slate-500">
+                  <span>0 HRS (WFH)</span>
+                  <span class="text-rpg-gold font-bold">▲ 3.5h DAILY TRAFFIC</span>
+                  <span>6+ HRS (BURNOUT)</span>
+                </div>
+
+                <div id="commuteWarningText" class="text-[11px] font-mono text-rose-400 flex items-center gap-1.5 pt-1.5 border-t border-slate-850">
+                  <i class="fa-solid fa-triangle-exclamation"></i>
+                  <span>Commute tax equates to 78 hours/month of lost discretionary XP generation.</span>
+                </div>
+              </div>
+
+              <!-- Primary Guild Specialization -->
+              <div>
+                <label class="block text-[11px] font-mono text-slate-400 uppercase mb-1.5">GUILD SPECIALIZATION</label>
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs font-mono">
+                  <button type="button" id="btnGuild-BPO" onclick="app.setGuild('BPO')" class="matrix-btn p-2 text-center text-xs">
+                    <span class="block font-bold">BPO Ops</span>
+                  </button>
+                  <button type="button" id="btnGuild-Tech" onclick="app.setGuild('Tech')" class="matrix-btn active-cyan p-2 text-center text-xs">
+                    <span class="block font-bold">Tech / Dev</span>
+                  </button>
+                  <button type="button" id="btnGuild-Freelance" onclick="app.setGuild('Freelance')" class="matrix-btn p-2 text-center text-xs">
+                    <span class="block font-bold">Freelance</span>
+                  </button>
+                  <button type="button" id="btnGuild-Corporate" onclick="app.setGuild('Corporate')" class="matrix-btn p-2 text-center text-xs">
+                    <span class="block font-bold">Corporate</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Focused Mode Sub-stepper Action -->
+            <div class="pillar-stepper-bar flex justify-between pt-2 border-t border-slate-800">
+              <button type="button" onclick="app.switchPillarTab(1)" class="px-4 py-2 bg-dungeon-950 border border-slate-800 text-slate-400 hover:text-white font-mono text-xs">
+                ← PREV: CORE BASELINE
+              </button>
+              <button type="button" onclick="app.switchPillarTab(3)" class="btn-brutal px-5 py-2 bg-sky-950 hover:bg-sky-900 text-rpg-mana border border-rpg-mana font-bold font-mono text-xs flex items-center gap-1.5">
+                <span>NEXT: DEBTS & HMO (3/4)</span>
+                <i class="fa-solid fa-arrow-right text-xs"></i>
+              </button>
+            </div>
+          </div>
+
+          <!-- ==================== PILLAR 03: LIABILITIES & SHIELDS ==================== -->
+          <div id="pillarSection-3" class="pillar-section hidden bg-dungeon-900 border border-slate-800 p-5 sm:p-6 shadow-brutal flex flex-col justify-between space-y-4">
+            <div>
+              <div class="flex items-center justify-between border-b border-slate-800 pb-2.5 mb-4">
+                <div class="flex items-center gap-2 text-sm font-bold text-white uppercase font-mono">
+                  <span class="text-rose-400">■</span>
+                  <span>PILLAR 03 // LIABILITIES & HEALTH SHIELDS</span>
+                </div>
+                <span class="text-xs text-rose-400 font-mono uppercase bg-rose-950/40 px-2 py-0.5 border border-rose-900/60">FINANCIAL ARMOR</span>
+              </div>
+
+              <!-- Debt Vector Chips -->
+              <div class="mb-4">
+                <label class="block text-[11px] font-mono text-slate-400 uppercase mb-1.5">PRIMARY DEBT VECTOR</label>
+                <div class="flex flex-wrap gap-2 text-xs font-mono">
+                  <button type="button" id="btnDebt-CreditCard" onclick="app.setDebtType('CreditCard')" class="matrix-btn active-yellow px-3 py-1.5 text-xs">
+                    Credit Card
+                  </button>
+                  <button type="button" id="btnDebt-SalaryLoan" onclick="app.setDebtType('SalaryLoan')" class="matrix-btn px-3 py-1.5 text-xs">
+                    Salary Loan
+                  </button>
+                  <button type="button" id="btnDebt-SSS" onclick="app.setDebtType('SSS')" class="matrix-btn px-3 py-1.5 text-xs">
+                    SSS / Pag-IBIG
+                  </button>
+                  <button type="button" id="btnDebt-Auto" onclick="app.setDebtType('Auto')" class="matrix-btn px-3 py-1.5 text-xs">
+                    Auto Loan
+                  </button>
+                  <button type="button" id="btnDebt-None" onclick="app.setDebtType('None')" class="matrix-btn px-3 py-1.5 text-xs">
+                    Zero Debt
+                  </button>
+                </div>
+              </div>
+
+              <!-- Monthly Debt Amortization -->
+              <div class="mb-4">
+                <div class="flex justify-between text-[11px] font-mono mb-1">
+                  <span class="text-slate-400 uppercase">MONTHLY DEBT AMORTIZATION</span>
+                  <span id="debtDrainLabel" class="text-rose-400 font-bold">DRAINS 10% INCOME</span>
+                </div>
+                <div class="flex items-center bg-dungeon-950 border border-slate-800 px-3.5 py-2">
+                  <span class="text-rose-400 font-bold mr-1.5 text-sm">₱</span>
+                  <input type="number" id="inputDebtPayment" min="0" step="500" value="4500" oninput="app.recalcCalibrationTelemetry()" class="w-full bg-transparent text-white font-mono text-xs focus:outline-none font-bold">
+                  <span class="text-[11px] text-slate-400 font-mono font-bold">/MO</span>
+                </div>
+              </div>
+
+              <!-- HMO Health Armor -->
+              <div>
+                <label class="block text-[11px] font-mono text-slate-400 uppercase mb-1.5">HMO HEALTH ARMOR</label>
+                <div class="space-y-2">
+                  <div id="hmoOption-Comprehensive" onclick="app.setHmoShield('Comprehensive')" class="selectable-card selected-gold p-3 flex items-start gap-2.5">
+                    <input type="radio" name="hmoShieldRadio" value="Comprehensive" checked class="mt-0.5 accent-amber-400">
+                    <div class="flex-1 text-xs font-mono">
+                      <div class="flex justify-between">
+                        <span class="font-bold text-white">Comprehensive Corporate HMO</span>
+                        <span class="text-[9px] text-rpg-gold border border-rpg-gold px-1.5 py-0.5 bg-amber-950/40">[TIER 1]</span>
+                      </div>
+                      <p class="text-[11px] text-slate-400 mt-0.5">₱200,000 MBL + Dependents Covered</p>
+                    </div>
+                  </div>
+
+                  <div id="hmoOption-Solo" onclick="app.setHmoShield('Solo')" class="selectable-card p-3 flex items-start gap-2.5">
+                    <input type="radio" name="hmoShieldRadio" value="Solo" class="mt-0.5 accent-amber-400">
+                    <div class="flex-1 text-xs font-mono">
+                      <div class="flex justify-between">
+                        <span class="font-bold text-slate-300">Solo Freelancer Prepaid Card</span>
+                        <span class="text-[9px] text-slate-400 border border-slate-700 px-1.5 py-0.5">[TIER 3]</span>
+                      </div>
+                      <p class="text-[11px] text-slate-400 mt-0.5">Max ₱50k ER Only / No Outpatient</p>
+                    </div>
+                  </div>
+
+                  <div id="hmoOption-PhilHealth" onclick="app.setHmoShield('PhilHealth')" class="selectable-card p-3 flex items-start gap-2.5">
+                    <input type="radio" name="hmoShieldRadio" value="PhilHealth" class="mt-0.5 accent-amber-400">
+                    <div class="flex-1 text-xs font-mono">
+                      <div class="flex justify-between">
+                        <span class="font-bold text-slate-300">PhilHealth Only (Unshielded)</span>
+                        <span class="text-[9px] text-rose-400 border border-rose-900 px-1.5 py-0.5 bg-rose-950/40">[DEFICIT]</span>
+                      </div>
+                      <p class="text-[11px] text-rose-400/80 mt-0.5">Vulnerable to medical emergency depletion</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Focused Mode Sub-stepper Action -->
+            <div class="pillar-stepper-bar flex justify-between pt-2 border-t border-slate-800">
+              <button type="button" onclick="app.switchPillarTab(2)" class="px-4 py-2 bg-dungeon-950 border border-slate-800 text-slate-400 hover:text-white font-mono text-xs">
+                ← PREV: WORK DRAIN
+              </button>
+              <button type="button" onclick="app.switchPillarTab(4)" class="btn-brutal px-5 py-2 bg-sky-950 hover:bg-sky-900 text-rpg-mana border border-rpg-mana font-bold font-mono text-xs flex items-center gap-1.5">
+                <span>NEXT: AI & DESIRES (4/4)</span>
+                <i class="fa-solid fa-arrow-right text-xs"></i>
+              </button>
+            </div>
+          </div>
+
+          <!-- ==================== PILLAR 04: EQUALIZERS & DESIRES ==================== -->
+          <div id="pillarSection-4" class="pillar-section hidden bg-dungeon-900 border border-slate-800 p-5 sm:p-6 shadow-brutal flex flex-col justify-between space-y-4">
+            <div>
+              <div class="flex items-center justify-between border-b border-slate-800 pb-2.5 mb-4">
+                <div class="flex items-center gap-2 text-sm font-bold text-white uppercase font-mono">
+                  <span class="text-rpg-void">■</span>
+                  <span>PILLAR 04 // EQUALIZERS & DESIRES</span>
+                </div>
+                <span class="text-xs text-rpg-void font-mono uppercase bg-purple-950/40 px-2 py-0.5 border border-purple-900/60">MULTIPLIERS & DESTINY</span>
+              </div>
+
+              <!-- Multipliers Row -->
+              <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
+                <div>
+                  <label class="block text-[10px] font-mono text-slate-400 uppercase mb-1.5">AI LEVERAGE</label>
+                  <div class="space-y-1.5">
+                    <button type="button" id="btnAi-Traditional" onclick="app.setAiLeverage('Traditional')" class="matrix-btn w-full py-1.5 text-xs text-center">Traditional (1x)</button>
+                    <button type="button" id="btnAi-AiAugmented" onclick="app.setAiLeverage('AiAugmented')" class="matrix-btn active-yellow w-full py-1.5 text-xs text-center font-bold">Augmented (3x)</button>
+                    <button type="button" id="btnAi-Architect10x" onclick="app.setAiLeverage('Architect10x')" class="matrix-btn w-full py-1.5 text-xs text-center">Architect (10x)</button>
+                  </div>
+                </div>
+
+                <div>
+                  <label class="block text-[10px] font-mono text-slate-400 uppercase mb-1.5">SOCIAL NET</label>
+                  <div class="space-y-1.5">
+                    <button type="button" id="btnSocial-LoneWolf" onclick="app.setSocialCapital('LoneWolf')" class="matrix-btn w-full py-1.5 text-xs text-center">Lone Wolf</button>
+                    <button type="button" id="btnSocial-CommunityPeer" onclick="app.setSocialCapital('CommunityPeer')" class="matrix-btn active-cyan w-full py-1.5 text-xs text-center font-bold">Community</button>
+                    <button type="button" id="btnSocial-GlobalNetwork" onclick="app.setSocialCapital('GlobalNetwork')" class="matrix-btn w-full py-1.5 text-xs text-center">Global Net</button>
+                  </div>
+                </div>
+
+                <div>
+                  <label class="block text-[10px] font-mono text-slate-400 uppercase mb-1.5">LEARNING VELOCITY</label>
+                  <div class="space-y-1.5">
+                    <button type="button" id="btnLearning-Steady" onclick="app.setLearningVelocity('Steady')" class="matrix-btn w-full py-1.5 text-xs text-center">Steady</button>
+                    <button type="button" id="btnLearning-HyperAdaptive" onclick="app.setLearningVelocity('HyperAdaptive')" class="matrix-btn active-gold w-full py-1.5 text-xs text-center font-bold">Hyper-Fast</button>
+                    <button type="button" id="btnLearning-Stagnant" onclick="app.setLearningVelocity('Stagnant')" class="matrix-btn w-full py-1.5 text-xs text-center">Stagnant</button>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Primary Desire Vector (2x2 Cards + 1 Custom Card) -->
+              <div>
+                <div class="flex items-center justify-between mb-1.5">
+                  <label class="block text-[11px] font-mono text-slate-400 uppercase">PRIMARY DESIRE NORTH STAR</label>
+                  <span class="text-[10px] text-purple-400 font-mono flex items-center gap-1">
+                    <i class="fa-solid fa-wand-magic-sparkles"></i>
+                    <span>CUSTOM INPUT SUPPORTED</span>
+                  </span>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <div id="desireCard-DollarClients" onclick="app.setDesireVector('DollarClients')" class="selectable-card selected-gold p-3">
+                    <div class="flex items-center gap-1.5 text-xs font-bold text-rpg-gold mb-1 font-mono">
+                      <span>●</span>
+                      <span>DOLLAR CLIENTS (US RETENTION)</span>
+                    </div>
+                    <p class="text-[11px] text-slate-300 font-mono leading-relaxed">
+                      Target $3,500/mo foreign client retainer pipeline.
+                    </p>
+                  </div>
+
+                  <div id="desireCard-ProvincialWFH" onclick="app.setDesireVector('ProvincialWFH')" class="selectable-card p-3">
+                    <div class="flex items-center gap-1.5 text-xs font-bold text-slate-300 mb-1 font-mono">
+                      <span class="text-slate-500">○</span>
+                      <span>PROVINCIAL WFH (SIARGAO)</span>
+                    </div>
+                    <p class="text-[11px] text-slate-400 font-mono leading-relaxed">
+                      Sustain Manila dev rate at 40% CoL in beach province.
+                    </p>
+                  </div>
+
+                  <div id="desireCard-FamilyHome" onclick="app.setDesireVector('FamilyHome')" class="selectable-card p-3">
+                    <div class="flex items-center gap-1.5 text-xs font-bold text-slate-300 mb-1 font-mono">
+                      <span class="text-slate-500">○</span>
+                      <span>PAG-IBIG MP2 FIRE</span>
+                    </div>
+                    <p class="text-[11px] text-slate-400 font-mono leading-relaxed">
+                      Dividend snowball targeting early retirement at age 38.
+                    </p>
+                  </div>
+
+                  <div id="desireCard-OwnBusiness" onclick="app.setDesireVector('OwnBusiness')" class="selectable-card p-3">
+                    <div class="flex items-center gap-1.5 text-xs font-bold text-slate-300 mb-1 font-mono">
+                      <span class="text-slate-500">○</span>
+                      <span>OWN TECH STUDIO</span>
+                    </div>
+                    <p class="text-[11px] text-slate-400 font-mono leading-relaxed">
+                      Transition from hourly rate to software shop owner.
+                    </p>
+                  </div>
+
+                  <!-- 5th Card: Custom Desire -->
+                  <div id="desireCard-Custom" onclick="app.setDesireVector('Custom')" class="selectable-card p-3 sm:col-span-2 border border-purple-500/60 bg-purple-950/20 hover:border-purple-400 transition-all">
+                    <div class="flex items-center justify-between mb-1">
+                      <div class="flex items-center gap-1.5 text-xs font-bold text-purple-300 font-mono">
+                        <span class="text-purple-400">✧</span>
+                        <span>✨ CUSTOM NORTH STAR // WRITE YOUR OWN DREAM</span>
+                      </div>
+                      <span class="text-[9px] bg-purple-900/80 text-purple-200 px-1.5 py-0.5 border border-purple-400 font-mono">100% BESPOKE</span>
+                    </div>
+                    <p class="text-[11px] text-purple-200/80 font-mono leading-relaxed">
+                      Type your exact personal vision (specific career leap, dollar target, tech stack, family goal, or offshore pivot) below.
+                    </p>
+                  </div>
+                </div>
+
+                <!-- Free-Form Custom Desire Input Studio -->
+                <div id="customDesireInputBox" class="mt-2.5 bg-dungeon-950 border border-purple-500/70 p-3 space-y-2">
+                  <div class="flex items-center justify-between">
+                    <label class="text-[11px] font-mono text-purple-300 font-bold uppercase flex items-center gap-1.5">
+                      <i class="fa-solid fa-feather-pointed text-purple-400"></i>
+                      <span>TYPE YOUR CUSTOM DESIRE STATEMENT</span>
+                    </label>
+                    <span class="text-[9px] text-slate-400 font-mono bg-dungeon-900 px-1.5 py-0.5 border border-slate-800">FREE-FORM INPUT</span>
+                  </div>
+
+                  <textarea id="inputCustomDesire" rows="2" 
+                    placeholder="e.g. Build an AI-assisted marketing agency targeting Australian medical clinics, earn $4,500/mo, pay off family debt, and relocate to a beachfront rental in Siargao with Starlink..."
+                    oninput="app.onCustomDesireInput(this.value)"
+                    class="w-full bg-dungeon-900 border border-slate-750 focus:border-purple-400 p-2 text-xs font-mono text-white placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-purple-400 resize-none"></textarea>
+
+                  <!-- Quick Starter Idea Chips -->
+                  <div class="flex flex-wrap items-center gap-1 text-[10px] font-mono pt-1 border-t border-slate-850">
+                    <span class="text-slate-400">Idea Starters:</span>
+                    <button type="button" onclick="app.setQuickCustomDesire('Build a $5,000/mo AI automation agency targeting US healthcare clients with 0h commute')" class="px-2 py-0.5 bg-dungeon-900 border border-slate-750 hover:border-purple-400 text-slate-300 hover:text-white">🚀 $5k/mo US AI Agency</button>
+                    <button type="button" onclick="app.setQuickCustomDesire('Transition from BPO graveyard shift to Remote Cloud DevOps Consultant at ₱130k/mo')" class="px-2 py-0.5 bg-dungeon-900 border border-slate-750 hover:border-purple-400 text-slate-300 hover:text-white">🛡️ BPO → Cloud DevOps Pivot</button>
+                    <button type="button" onclick="app.setQuickCustomDesire('Move to Siargao on 100% remote async dev work, channeling ₱45k/mo into Pag-IBIG MP2 FIRE')" class="px-2 py-0.5 bg-dungeon-900 border border-slate-750 hover:border-purple-400 text-slate-300 hover:text-white">🌴 Siargao + MP2 FIRE</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Focused Mode Sub-stepper Action -->
+            <div class="pillar-stepper-bar flex justify-between items-center pt-2 border-t border-slate-800">
+              <button type="button" onclick="app.switchPillarTab(3)" class="px-4 py-2 bg-dungeon-950 border border-slate-800 text-slate-400 hover:text-white font-mono text-xs">
+                ← PREV: DEBTS & HMO (3/4)
+              </button>
+              <div class="text-xs text-slate-400 font-mono flex items-center gap-1.5">
+                <i class="fa-solid fa-circle-check text-rpg-emerald"></i>
+                <span class="text-slate-300 font-bold">PILLAR 4/4 COMPLETE</span>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Live Telemetry Calculation Bar -->
+        <div class="bg-dungeon-950 border border-slate-800 p-3.5 mt-4 flex flex-wrap items-center justify-between gap-3 text-xs font-mono">
+          <div class="flex items-center gap-2">
+            <span class="text-slate-400 uppercase text-[10px]">CASHFLOW:</span>
+            <span id="telemetryCashflow" class="text-rpg-gold font-bold">+₱12,500/mo</span>
+          </div>
+
+          <div class="flex items-center gap-2">
+            <span class="text-slate-400 uppercase text-[10px]">BURNOUT RISK:</span>
+            <span id="telemetryBurnout" class="text-rose-400 font-bold">68% [MODERATE]</span>
+          </div>
+
+          <div class="flex items-center gap-2">
+            <span class="text-slate-400 uppercase text-[10px]">CLASS TIER:</span>
+            <span id="telemetryClassTier" class="text-rpg-mana font-bold">Class C-Upper (NCR)</span>
+          </div>
+
+          <div class="flex items-center gap-2">
+            <span class="text-slate-400 uppercase text-[10px]">5-YR NET WORTH:</span>
+            <span id="telemetryNetWorth" class="text-rpg-gold font-bold">₱2,480,000</span>
+          </div>
+        </div>
+
+        <!-- Bottom Action Bar & Navigation -->
+        <div class="pt-3 flex flex-col sm:flex-row items-center justify-between gap-3">
+          <button type="button" onclick="app.navTo('screen-class-select', 'Archetype')" class="px-4 py-2 bg-dungeon-900 hover:bg-dungeon-800 text-slate-300 font-mono text-xs border border-slate-800">
+            [ESC] RE-ROLL ARCHETYPE
+          </button>
+
+          <button type="button" onclick="app.saveCharacterSheet(event)" class="btn-brutal px-6 py-2 bg-rpg-gold hover:bg-amber-400 text-slate-950 font-bold font-mono text-xs border border-slate-950 flex items-center gap-2 shadow-brutal-gold cursor-pointer">
+            <span>PROCEED TO HALL OF DOORS [ENTER]</span>
+            <i class="fa-solid fa-arrow-right"></i>
+          </button>
+        </div>
+      </form>
+
+    </section>
+
+    <!-- ======================================================================= -->
+    <!-- SCREEN 3: HALL OF DOORS (The 3 Destinies Portals)                       -->
+    <!-- ======================================================================= -->
+    <!-- ======================================================================= -->
+    <!-- SCREEN 3: HALL OF DOORS (The 3 Destinies Portals)                       -->
+    <!-- ======================================================================= -->
+    <section id="screen-hall-of-doors" class="screen-view hidden max-w-7xl mx-auto space-y-5">
+      
+      <!-- Top Title Banner -->
+      <div class="flex flex-col md:flex-row md:items-start justify-between gap-4">
+        <div>
+          <div class="text-[10px] text-rpg-gold font-mono font-bold tracking-wider mb-0.5">
+            ■ MANILA METRO DESTINY ROUTER // STEP 03
+          </div>
+          <h1 class="text-2xl sm:text-3xl font-extrabold text-rpg-gold font-mono tracking-tight uppercase">
+            SELECT YOUR 5-YEAR DESTINY PORTAL
+          </h1>
+          <p class="text-xs sm:text-sm text-slate-400 font-mono mt-1 max-w-2xl leading-relaxed">
+            Three calibrated pathways dynamically synthesized by AI based on your baseline, remittance obligations, commute load, and AI leverage.
+          </p>
+        </div>
+
+        <!-- Active Hero Baseline Strip & AI Status -->
+        <div class="flex flex-wrap items-center gap-2">
+          <div class="bg-dungeon-900 border border-slate-800 p-2.5 shadow-brutal flex items-center gap-2 text-xs font-mono">
+            <span class="text-slate-400 uppercase text-[10px]">HERO:</span>
+            <span id="doorsHudClass" class="text-rpg-mana font-bold">The BPO Night Owl</span>
+            <span class="text-slate-600">|</span>
+            <span id="doorsHudIncome" class="text-rpg-gold font-bold">₱45k/mo</span>
+          </div>
+
+          <button onclick="app.synthesizeAndRenderPortals(true)" class="btn-brutal px-3 py-2 bg-sky-950 hover:bg-sky-900 text-rpg-mana border border-rpg-mana font-mono text-xs font-bold flex items-center gap-1.5">
+            <i class="fa-solid fa-arrows-rotate text-xs"></i>
+            <span>RE-SYNTHESIZE AI</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- AI Synthesis Live Banner -->
+      <div id="aiSynthesisBanner" class="bg-dungeon-900 border border-sky-900/60 p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2 shadow-brutal-cyan text-xs font-mono">
+        <div class="flex items-center gap-2 text-rpg-mana">
+          <i class="fa-solid fa-wand-magic-sparkles animate-pulse"></i>
+          <span id="aiSynthesisBannerText">✨ GEMINI ENGINE: 3 Bespoke Portals Synthesized for calibrated Hero baseline</span>
+        </div>
+        <div class="text-[10px] text-slate-400 flex items-center gap-1.5">
+          <span class="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
+          <span>5-YEAR PROBABILITY SYNCHRONIZED</span>
+        </div>
+      </div>
+
+      <!-- Interactive Custom Desire Prompt Weaver Strip -->
+      <div class="bg-dungeon-900 border-2 border-purple-500/70 p-3.5 shadow-brutal-purple flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 font-mono text-xs">
+        <div class="flex-1 space-y-1">
+          <div class="flex items-center gap-2 text-purple-300 font-bold text-xs uppercase">
+            <i class="fa-solid fa-sparkles text-purple-400"></i>
+            <span>CUSTOM DESIRE WEAVER // TYPE YOUR DREAM DESTINY</span>
+          </div>
+          <input type="text" id="doorsCustomDesireInput" 
+            placeholder="Type any specific dream to weave into Portal 03 (e.g. Build an AI marketing SaaS, move to Siargao, earn $5k/mo)..." 
+            onkeydown="if(event.key==='Enter') app.submitDoorsCustomDesire()"
+            class="w-full bg-dungeon-950 border border-slate-750 focus:border-purple-400 p-2 text-xs font-mono text-white placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-purple-400">
+        </div>
+        <button type="button" onclick="app.submitDoorsCustomDesire()" class="btn-brutal px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white font-bold font-mono text-xs border border-slate-950 shadow-sm flex items-center justify-center gap-2 whitespace-nowrap self-stretch md:self-end">
+          <i class="fa-solid fa-wand-magic-sparkles text-xs"></i>
+          <span>WEAVE CUSTOM DESIRE ✨</span>
+        </button>
+      </div>
+
+      <!-- 3 Destinies Dynamic Portal Cards Grid -->
+      <div id="destinyPortalsContainer" class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <!-- Rendered dynamically by app.synthesizeAndRenderPortals() -->
+      </div>
+
+      <!-- Bottom Control Bar -->
+      <div class="pt-3 flex flex-col md:flex-row items-center justify-between gap-3 border-t border-slate-900">
+        <div class="flex items-center gap-2 text-xs font-mono text-slate-400">
+          <span class="text-rpg-mana font-bold">KEYPAD:</span>
+          <div class="flex items-center gap-1">
+            <button onclick="app.enterPortalByIndex(0)" class="keypad-badge">1</button>
+            <button onclick="app.enterPortalByIndex(1)" class="keypad-badge">2</button>
+            <button onclick="app.enterPortalByIndex(2)" class="keypad-badge">3</button>
+          </div>
+          <span class="text-slate-500">|</span>
+          <span class="text-slate-400">↵ ENTER TO SIMULATE</span>
+        </div>
+
+        <div class="flex items-center gap-3">
+          <button onclick="app.navTo('screen-character-sheet', 'Calibration')" class="px-4 py-2 bg-dungeon-900 hover:bg-dungeon-800 text-slate-300 font-mono text-xs border border-slate-800">
+            [ESC] BACK
+          </button>
+
+          <button onclick="app.enterPortalByIndex(0)" class="btn-brutal px-6 py-2 bg-rpg-gold hover:bg-amber-400 text-slate-950 font-bold font-mono text-xs border border-slate-950 flex items-center gap-2 shadow-brutal-gold">
+            <span>OPEN MULTIVERSE DASHBOARD ❖</span>
+            <i class="fa-solid fa-arrow-right"></i>
+          </button>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- ======================================================================= -->
+    <!-- SCREEN 4: SIMULATION LOADING STATE                                      -->
+    <!-- ======================================================================= -->
+    <section id="screen-portal-loading" class="screen-view hidden max-w-2xl mx-auto my-12 text-center">
+      <div class="bg-dungeon-900 border border-slate-800 p-8 sm:p-10 shadow-brutal-lg relative overflow-hidden">
+        <div class="relative w-24 h-24 mx-auto mb-5">
+          <div class="absolute inset-0 rounded-full border-3 border-dashed border-sky-500 animate-[spin_8s_linear_infinite]"></div>
+          <div class="absolute inset-2 rounded-full border-3 border-dotted border-rpg-gold animate-[spin_5s_linear_infinite_reverse]"></div>
+          <div class="absolute inset-0 flex items-center justify-center text-2xl text-rpg-gold animate-pulse">
+            <i class="fa-solid fa-dice-d20"></i>
+          </div>
+        </div>
+
+        <span class="font-mono text-[10px] text-rpg-mana uppercase tracking-widest block mb-1">Multiverse Quantum Engine</span>
+        <h2 id="portalLoadingScenarioTitle" class="text-base sm:text-lg font-bold text-white font-mono uppercase mb-4">
+          SIMULATING TIMELINE: TECH PORTAL
+        </h2>
+
+        <div class="bg-slate-950 border border-slate-800 p-3 text-left font-mono text-xs text-emerald-400 max-w-md mx-auto shadow-brutal-sm space-y-1">
+          <div id="terminalLog1" class="opacity-50">> Initializing parallel state matrices...</div>
+          <div id="terminalLog2" class="opacity-80">> Factoring PSA inflation & BIR 8% rules...</div>
+          <div id="terminalLog3" class="text-rpg-gold font-bold">> Simulating 5-year timeline vectors...</div>
+        </div>
+
+        <div class="w-full max-w-md mx-auto bg-slate-950 h-2.5 border border-slate-800 mt-4 p-0.5">
+          <div id="portalProgressBar" class="bg-gradient-to-r from-cyan-500 to-rpg-gold h-full w-12 transition-all duration-300"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ======================================================================= -->
+    <!-- SCREEN 5: MULTIVERSE ANALYTICAL DASHBOARD (Clean & Balanced)            -->
+    <!-- ======================================================================= -->
+    <section id="screen-dashboard" class="screen-view hidden max-w-7xl mx-auto space-y-4">
+      
+      <!-- Timeline Fork Candidate Tabs Row -->
+      <div class="grid grid-cols-1 md:grid-cols-4 gap-2.5">
+        <!-- Fork 1: Active Reality -->
+        <div id="forkTab-0" onclick="app.switchForkTimeline(0)" class="bg-dungeon-900 border-2 border-rpg-gold p-3 shadow-brutal-gold cursor-pointer transition-all">
+          <div class="flex justify-between items-center text-[10px] font-mono mb-1">
+            <span id="forkBadgeStatus-0" class="text-rpg-gold font-bold">ACTIVE REALITY</span>
+            <span id="forkStability-0" class="text-slate-400">98.4% STABILITY</span>
+          </div>
+          <h4 id="forkTitle-0" class="text-xs font-bold text-white font-mono truncate" title="⚡ Shift to High-Income IT & Consulting">
+            ⚡ Shift to High-Income IT & Consulting
+          </h4>
+          <p id="forkDesc-0" class="text-[10px] text-slate-400 font-mono mt-0.5 truncate" title="BIR 8% Flat Tax / Net +₱145k/mo">
+            BIR 8% Flat Tax / Net +₱145k/mo
+          </p>
+        </div>
+
+        <!-- Fork 2: Beta -->
+        <div id="forkTab-1" onclick="app.switchForkTimeline(1)" class="bg-dungeon-900 border border-slate-800 hover:border-rpg-mana p-3 shadow-brutal cursor-pointer transition-all">
+          <div class="flex justify-between items-center text-[10px] font-mono mb-1">
+            <span id="forkBadgeStatus-1" class="text-rpg-mana font-bold">FORK B</span>
+            <span id="forkStability-1" class="text-slate-400">74.1% STABILITY</span>
+          </div>
+          <h4 id="forkTitle-1" class="text-xs font-bold text-slate-200 font-mono truncate" title="🌴 Relocate to Province on Remote WFH">
+            🌴 Relocate to Province on Remote WFH
+          </h4>
+          <p id="forkDesc-1" class="text-[10px] text-slate-400 font-mono mt-0.5 truncate" title="Starlink + US Retainer / -40% Living Cost">
+            Starlink + US Retainer / -40% Living Cost
+          </p>
+        </div>
+
+        <!-- Fork 3: Gamma -->
+        <div id="forkTab-2" onclick="app.switchForkTimeline(2)" class="bg-dungeon-900 border border-slate-800 hover:border-purple-400 p-3 shadow-brutal cursor-pointer transition-all">
+          <div class="flex justify-between items-center text-[10px] font-mono mb-1">
+            <span id="forkBadgeStatus-2" class="text-purple-400 font-bold">FORK C</span>
+            <span id="forkStability-2" class="text-slate-400">CUSTOM</span>
+          </div>
+          <h4 id="forkTitle-2" class="text-xs font-bold text-slate-300 font-mono truncate" title="✨ Custom Desired Pathway">
+            ✨ Custom Desired Pathway
+          </h4>
+          <p id="forkDesc-2" class="text-[10px] text-slate-400 font-mono mt-0.5 truncate" title="Hero Bespoke Desire Pathway">
+            Hero Bespoke Desire Pathway
+          </p>
+        </div>
+
+        <!-- Fork 4: Add New Fork Button -->
+        <button onclick="app.openCustomModal()" class="bg-dungeon-950 hover:bg-dungeon-900 border border-dashed border-slate-700 hover:border-rpg-mana p-3 flex flex-col items-center justify-center text-slate-400 hover:text-white font-mono text-xs transition-all">
+          <i class="fa-solid fa-plus text-sm mb-0.5 text-rpg-mana"></i>
+          <span>[+] FORK NEW</span>
+        </button>
+      </div>
+
+      <!-- Scrubber & Controls Bar -->
+      <div class="bg-dungeon-900 border border-slate-800 p-3 shadow-brutal flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3">
+        <div class="flex items-center gap-3">
+          <button onclick="timelineEngine.runSimulationPulse()" class="btn-brutal px-3.5 py-1.5 bg-rpg-gold hover:bg-amber-400 text-slate-950 font-bold font-mono text-xs flex items-center gap-1.5 border border-slate-950 shadow-brutal-sm">
+            <i class="fa-solid fa-play text-[10px]"></i>
+            <span>RUN SIM ENGINE</span>
+          </button>
+          <div>
+            <div class="text-[10px] text-slate-400 font-mono uppercase">PROJECTED EPOCH</div>
+            <div class="text-xs font-bold text-white font-mono">
+              <span id="currentEpochDisplay" class="text-rpg-gold text-sm font-extrabold">YEAR 2028</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Timeline Range Scrubber -->
+        <div class="flex-1 max-w-xl px-2">
+          <input type="range" id="timelineSlider" min="2026" max="2030" step="1" value="2028" oninput="timelineEngine.onSliderChange(this.value)" class="retro-slider w-full cursor-pointer">
+          <div class="flex justify-between text-[10px] font-mono text-slate-400 mt-1">
+            <span class="cursor-pointer hover:text-white" onclick="timelineEngine.setYear(2026)">2026</span>
+            <span class="cursor-pointer hover:text-white" onclick="timelineEngine.setYear(2027)">2027</span>
+            <span class="cursor-pointer hover:text-rpg-gold text-rpg-gold font-bold" onclick="timelineEngine.setYear(2028)">2028</span>
+            <span class="cursor-pointer hover:text-white" onclick="timelineEngine.setYear(2029)">2029</span>
+            <span class="cursor-pointer hover:text-white" onclick="timelineEngine.setYear(2030)">2030</span>
+          </div>
+        </div>
+
+        <!-- Right Vector Telemetry -->
+        <div class="text-right text-[10px] font-mono shrink-0 hidden sm:block">
+          <div class="text-slate-400">PH INFLATION: <strong class="text-rpg-mana">3.6% ADJ.</strong></div>
+          <div class="text-slate-500">SYNC: <strong class="text-emerald-400">94.0% AI</strong></div>
+        </div>
+      </div>
+
+      <!-- 4 Telemetry Metric Cards -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+        
+        <!-- Metric 1: Cashflow -->
+        <div class="bg-dungeon-900 border border-slate-800 p-3 shadow-brutal flex flex-col justify-between">
+          <div>
+            <div class="flex justify-between items-center text-[10px] font-mono mb-1">
+              <span class="text-slate-400">CASHFLOW</span>
+              <span id="dashGrowthPct" class="text-rpg-emerald font-bold">+222% VS STATUS QUO</span>
+            </div>
+            <div class="text-[10px] text-slate-400 uppercase font-mono">NET MONTHLY INCOME</div>
+            <div id="statMonthlyIncome" class="text-xl font-bold text-rpg-gold font-mono my-0.5">₱145,000 <span class="text-xs text-slate-400 font-normal">/ mo</span></div>
+            <div id="dashStatusQuoBaseline" class="text-[10px] text-slate-400 font-mono">Status Quo: ₱45,000 / mo</div>
+          </div>
+          <div class="mt-2 pt-1.5 border-t border-slate-800 text-[9px] text-rpg-gold font-mono flex items-center gap-1">
+            <i class="fa-solid fa-shield-halved"></i>
+            <span>BIR 8% Flat Tax Shield Active</span>
+          </div>
+        </div>
+
+        <!-- Metric 2: Treasury -->
+        <div class="bg-dungeon-900 border border-slate-800 p-3 shadow-brutal flex flex-col justify-between">
+          <div>
+            <div class="flex justify-between items-center text-[10px] font-mono mb-1">
+              <span class="text-slate-400">TREASURY</span>
+              <span id="dashRunwayBadge" class="text-rpg-gold font-bold">24.5 MO RUNWAY</span>
+            </div>
+            <div class="text-[10px] text-slate-400 uppercase font-mono">NET CASH SAVINGS</div>
+            <div id="statTotalSavings" class="text-xl font-bold text-rpg-mana font-mono my-0.5">₱1,840,000 <span class="text-xs text-slate-400 font-normal">PHP</span></div>
+            <div class="text-[10px] text-slate-400 font-mono">Emergency Floor: ₱360k</div>
+          </div>
+          <div class="mt-2 pt-1.5 border-t border-slate-800 text-[9px] text-rpg-mana font-mono flex items-center gap-1">
+            <i class="fa-solid fa-chart-line"></i>
+            <span>Pag-IBIG MP2 6.5% Compounding</span>
+          </div>
+        </div>
+
+        <!-- Metric 3: Strain -->
+        <div class="bg-dungeon-900 border border-slate-800 p-3 shadow-brutal flex flex-col justify-between">
+          <div>
+            <div class="flex justify-between items-center text-[10px] font-mono mb-1">
+              <span class="text-slate-400">BIOMETRIC STRAIN</span>
+              <span class="text-rpg-emerald font-bold">-57 PTS RECOVERY</span>
+            </div>
+            <div class="text-[10px] text-slate-400 uppercase font-mono">STRESS & BURNOUT INDEX</div>
+            <div id="statStressIndex" class="text-xl font-bold text-emerald-400 font-mono my-0.5">28 / 100 <span class="text-xs font-normal">[SAFE]</span></div>
+            <div class="text-[10px] text-slate-400 font-mono leading-tight">Remittance capped at 15%; Async sprints.</div>
+          </div>
+        </div>
+
+        <!-- Metric 4: Sovereignty -->
+        <div class="bg-dungeon-900 border border-slate-800 p-3 shadow-brutal flex flex-col justify-between">
+          <div>
+            <div class="flex justify-between items-center text-[10px] font-mono mb-1">
+              <span class="text-slate-400">CHRONOS</span>
+              <span class="text-rpg-gold font-bold">+3.87 HRS/DAY</span>
+            </div>
+            <div class="text-[10px] text-slate-400 uppercase font-mono">WEEKLY FREE HOURS</div>
+            <div id="statFreeHours" class="text-xl font-bold text-rpg-gold font-mono my-0.5">+21.5 <span class="text-xs text-slate-400 font-normal">hrs / wk</span></div>
+            <div class="text-[10px] text-slate-400 font-mono">EDSA commute zeroed out</div>
+          </div>
+          <div class="mt-2 pt-1.5 border-t border-slate-800 text-[9px] text-slate-300 font-mono flex items-center gap-1">
+            <i class="fa-solid fa-sparkles text-rpg-void"></i>
+            <span>AI agents automate proposal workflow</span>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Main 2-Column Analytics Panel -->
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+
+        <!-- Left: Net Wealth Chart -->
+        <div class="bg-dungeon-900 border border-slate-800 p-4 shadow-brutal flex flex-col justify-between">
+          <div>
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-1 border-b border-slate-800 pb-2 mb-3">
+              <div>
+                <span class="text-[10px] text-slate-400 font-mono">[TRAJECTORY: 2026 - 2030]</span>
+                <h3 class="text-xs font-bold text-white font-mono uppercase">ACCUMULATED NET WEALTH</h3>
+              </div>
+              <div class="flex items-center gap-3 text-[11px] font-mono">
+                <span class="flex items-center gap-1"><span class="w-2.5 h-0.5 bg-rpg-gold"></span> <span id="dashChartLegendActive">Timeline Alpha</span></span>
+                <span class="flex items-center gap-1 text-slate-400"><span class="w-2.5 h-0.5 bg-slate-500 border-dashed"></span> Status Quo</span>
+              </div>
+            </div>
+
+            <div class="h-60 w-full relative">
+              <canvas id="financialChart"></canvas>
+            </div>
+          </div>
+
+          <!-- Bottom Crossover Callout -->
+          <div id="dashCrossoverCallout" class="mt-2.5 bg-dungeon-950 border border-slate-800 p-2 text-xs font-mono flex items-center justify-between gap-2">
+            <span id="dashCrossoverText" class="text-slate-300">Crossover: Consulting outpaces Corp VP by Month 18.</span>
+            <span id="dashCrossoverDiff" class="text-rpg-gold font-bold">[ALPHA +₱2.4M]</span>
+          </div>
+        </div>
+
+        <!-- Right: 5-Axis Life Balance Matrix -->
+        <div class="bg-dungeon-900 border border-slate-800 p-4 shadow-brutal flex flex-col justify-between">
+          <div>
+            <div class="flex items-center justify-between border-b border-slate-800 pb-2 mb-3">
+              <div>
+                <span class="text-[10px] text-slate-400 font-mono">[EQUILIBRIUM]</span>
+                <h3 class="text-xs font-bold text-white font-mono uppercase">5-AXIS LIFE BALANCE MATRIX</h3>
+              </div>
+              <span id="dashScoreBadge" class="bg-dungeon-950 border border-slate-800 px-2 py-0.5 text-rpg-gold font-bold font-mono text-xs">SCORE: 86/100</span>
+            </div>
+
+            <!-- 5 Metric Bars -->
+            <div class="space-y-2.5 font-mono text-xs mb-3">
+              <div>
+                <div class="flex justify-between text-[11px] mb-0.5">
+                  <span class="text-slate-200"><span class="text-rpg-gold">■</span> 1. WEALTH & LIQUIDITY</span>
+                  <span id="scoreVal-1" class="text-rpg-gold font-bold">92 / 100</span>
+                </div>
+                <div class="stat-bar-track"><div id="scoreBar-1" class="stat-bar-fill-yellow" style="width: 92%;"></div></div>
+              </div>
+
+              <div>
+                <div class="flex justify-between text-[11px] mb-0.5">
+                  <span class="text-slate-200"><span class="text-rpg-mana">■</span> 2. MENTAL WELLBEING</span>
+                  <span id="scoreVal-2" class="text-rpg-mana font-bold">84 / 100</span>
+                </div>
+                <div class="stat-bar-track"><div id="scoreBar-2" class="stat-bar-fill-cyan" style="width: 84%;"></div></div>
+              </div>
+
+              <div>
+                <div class="flex justify-between text-[11px] mb-0.5">
+                  <span class="text-slate-200"><span class="text-rpg-mana">■</span> 3. FREE TIME & AUTONOMY</span>
+                  <span id="scoreVal-3" class="text-rpg-mana font-bold">88 / 100</span>
+                </div>
+                <div class="stat-bar-track"><div id="scoreBar-3" class="stat-bar-fill-cyan" style="width: 88%;"></div></div>
+              </div>
+
+              <div>
+                <div class="flex justify-between text-[11px] mb-0.5">
+                  <span class="text-slate-200"><span class="text-rpg-mana">■</span> 4. CAREER SOVEREIGNTY</span>
+                  <span id="scoreVal-4" class="text-rpg-mana font-bold">82 / 100</span>
+                </div>
+                <div class="stat-bar-track"><div id="scoreBar-4" class="stat-bar-fill-cyan" style="width: 82%;"></div></div>
+              </div>
+
+              <div>
+                <div class="flex justify-between text-[11px] mb-0.5">
+                  <span class="text-slate-200"><span class="text-purple-400">■</span> 5. HEALTH SHIELD</span>
+                  <span id="scoreVal-5" class="text-purple-400 font-bold">80 / 100</span>
+                </div>
+                <div class="stat-bar-track"><div id="scoreBar-5" class="stat-bar-fill-purple" style="width: 80%;"></div></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Diagnostic Matrix Assessment -->
+          <div class="bg-dungeon-950 border border-slate-800 p-2.5 text-xs font-mono">
+            <div class="flex justify-between text-[10px] text-slate-400 mb-0.5">
+              <span>ASSESSMENT</span>
+              <span id="dashAssessmentTier" class="text-rpg-emerald font-bold">TIER: A+</span>
+            </div>
+            <p id="dashDiagnosticText" class="text-[11px] text-slate-300 leading-relaxed">
+              Elimination of 3h EDSA commute directly restored 15 baseline points. Independent status allows client diversification.
+            </p>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Philippine Hazard Engine Section -->
+      <div class="bg-dungeon-900 border border-rose-950 p-3.5 shadow-brutal space-y-2.5">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-1 border-b border-slate-800 pb-1.5">
+          <div class="flex items-center gap-2 text-xs font-bold font-mono">
+            <span class="text-rose-500">■</span>
+            <span class="text-slate-200 uppercase">PHILIPPINE HAZARD ENGINE (2027-2028)</span>
+          </div>
+          <div class="text-[10px] font-mono text-slate-400">
+            THRESHOLD: <strong class="text-rose-400">> 70% PROBABILITY</strong>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <!-- Curveball Event -->
+          <div class="bg-dungeon-950 border border-rose-900/60 p-2.5 text-xs font-mono space-y-1.5">
+            <div class="flex justify-between text-[10px]">
+              <span id="curveballTag" class="text-rose-400 font-bold">[2027 CURVEBALL EVENT]</span>
+              <span class="text-rose-400">SEVERITY: LEVEL 3</span>
+            </div>
+            <h4 id="curveballTitle" class="font-bold text-white text-xs">
+              Typhoon Power Grid Outage + BIR Audit Trigger
+            </h4>
+            <p id="curveballDesc" class="text-[11px] text-slate-400 leading-relaxed">
+              Luzon storm grid disruption + gross receipts verification for self-employed digital tech workers.
+            </p>
+          </div>
+
+          <!-- Autonomous Mitigation -->
+          <div class="bg-dungeon-950 border border-slate-800 p-2.5 text-xs font-mono space-y-1.5">
+            <div class="flex justify-between text-[10px]">
+              <span class="text-slate-300 font-bold">⚙ AUTONOMOUS MITIGATION</span>
+              <span class="text-rpg-emerald font-bold">[DAMAGE ARRESTED: 100%]</span>
+            </div>
+            <div class="space-y-1 text-[11px] text-slate-300">
+              <div class="flex items-start gap-1.5">
+                <i class="fa-solid fa-check text-rpg-emerald text-[10px] mt-1"></i>
+                <span id="mitigationPoint1"><strong>Hardware Resilience:</strong> Starlink + LiFePO4 battery station funded from setup stipend.</span>
+              </div>
+              <div class="flex items-start gap-1.5">
+                <i class="fa-solid fa-check text-rpg-emerald text-[10px] mt-1"></i>
+                <span id="mitigationPoint2"><strong>Fiscal Immunity:</strong> Automated BIR 8% flat-rate quarterly ledger booked with SSS WISP Plus.</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Bottom Action Area -->
+      <div class="pt-2 flex flex-col md:flex-row items-center justify-between gap-3">
+        <div class="text-xs font-mono text-slate-400">
+          <span class="text-rpg-mana font-bold">[EXECUTION MATRIX LOCKED]</span>
+          <span id="dashExecutionSummary" class="text-slate-300 ml-1">Timeline Alpha is mathematically superior across all 5 life vectors.</span>
+        </div>
+
+        <div class="flex items-center gap-3">
+          <button onclick="app.generateAndGoToQuestLog()" class="btn-brutal px-4 py-2 bg-transparent hover:bg-sky-950/50 text-rpg-mana font-bold font-mono text-xs border border-rpg-mana flex items-center gap-2">
+            <i class="fa-solid fa-scroll"></i>
+            <span>OPEN QUEST LOG</span>
+          </button>
+
+          <button onclick="app.exportQuestScroll()" class="btn-brutal px-5 py-2 bg-rpg-gold hover:bg-amber-400 text-slate-950 font-bold font-mono text-xs border border-slate-950 flex items-center gap-2 shadow-brutal-gold">
+            <i class="fa-solid fa-file-pdf"></i>
+            <span>EXPORT HERO DECREE</span>
+          </button>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- ======================================================================= -->
+    <!-- SCREEN 6: QUEST TRACKER / ACTION ROADMAP                                -->
+    <!-- ======================================================================= -->
+    <section id="screen-quest-tracker" class="screen-view hidden max-w-5xl mx-auto space-y-4">
+      <div class="bg-dungeon-900 border border-slate-800 p-4 shadow-brutal flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div>
+          <div class="text-[10px] text-rpg-emerald font-mono uppercase tracking-wider">ACTION PLAN INITIALIZED</div>
+          <h2 class="text-lg font-bold text-white font-mono uppercase">HERO'S ACTION QUEST LOG</h2>
+        </div>
+        <div class="flex items-center gap-2">
+          <button onclick="app.exportQuestScroll()" class="px-3 py-1.5 bg-dungeon-950 hover:bg-dungeon-800 text-slate-200 border border-slate-800 font-mono text-xs flex items-center gap-1.5">
+            <i class="fa-solid fa-file-arrow-down text-rpg-gold"></i>
+            <span>EXPORT SCROLL</span>
+          </button>
+          <button onclick="app.navTo('screen-dashboard', 'Multiverse')" class="px-3 py-1.5 bg-dungeon-950 hover:bg-dungeon-800 text-slate-200 border border-slate-800 font-mono text-xs">
+            DASHBOARD
+          </button>
+        </div>
+      </div>
+
+      <!-- Quest Progress -->
+      <div class="bg-dungeon-900 border border-slate-800 p-3.5 shadow-brutal space-y-2">
+        <div class="flex justify-between text-xs font-mono">
+          <span class="text-rpg-gold font-bold">QUEST COMPLETION PROGRESS</span>
+          <span class="text-slate-300"><span id="questCompletedCount" class="text-rpg-emerald font-bold">0</span> / <span id="questTotalCount">8</span> COMPLETED</span>
+        </div>
+        <div class="stat-bar-track h-2">
+          <div id="questProgressBar" class="stat-bar-fill-yellow h-full w-0 transition-all duration-300"></div>
+        </div>
+      </div>
+
+      <!-- 4 Categories Grid -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div class="bg-dungeon-900 border border-slate-800 p-4 shadow-brutal space-y-2.5">
+          <div class="text-xs font-bold text-rpg-gold font-mono uppercase border-b border-slate-800 pb-1.5">
+            [ PILLAR 1: TREASURY DEFENSE ]
+          </div>
+          <div id="category-treasury" class="space-y-2"></div>
+        </div>
+
+        <div class="bg-dungeon-900 border border-slate-800 p-4 shadow-brutal space-y-2.5">
+          <div class="text-xs font-bold text-rpg-mana font-mono uppercase border-b border-slate-800 pb-1.5">
+            [ PILLAR 2: SKILL TREE & AI LEVERAGE ]
+          </div>
+          <div id="category-skills" class="space-y-2"></div>
+        </div>
+
+        <div class="bg-dungeon-900 border border-slate-800 p-4 shadow-brutal space-y-2.5">
+          <div class="text-xs font-bold text-rpg-void font-mono uppercase border-b border-slate-800 pb-1.5">
+            [ PILLAR 3: PH GUILD & TAX CODES ]
+          </div>
+          <div id="category-bureaucracy" class="space-y-2"></div>
+        </div>
+
+        <div class="bg-dungeon-900 border border-slate-800 p-4 shadow-brutal space-y-2.5">
+          <div class="text-xs font-bold text-rpg-emerald font-mono uppercase border-b border-slate-800 pb-1.5">
+            [ PILLAR 4: FAMILY HEALTH & STAMINA ]
+          </div>
+          <div id="category-mana" class="space-y-2"></div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ========================================================================= -->
+  <!-- 3. BOTTOM GLOBAL FIXED STATUS BAR                                         -->
+  <!-- ========================================================================= -->
+  <footer class="fixed bottom-0 left-0 right-0 z-40 bg-dungeon-950 border-t border-slate-900 px-4 py-1.5 text-[11px] font-mono text-slate-400 shadow-brutal">
+    <div class="max-w-7xl mx-auto flex flex-col sm:flex-row sm:items-center justify-between gap-1">
+      <div class="flex items-center space-x-3 text-slate-400">
+        <span class="hover:text-white cursor-pointer" onclick="app.navTo('screen-quest-tracker', 'Quest Log')">[SPACE] QUEST LOG</span>
+        <span>|</span>
+        <span class="hover:text-white cursor-pointer" onclick="app.openWhatIfVaultModal()">[ESC] VAULT</span>
+        <span>|</span>
+        <span class="hover:text-white cursor-pointer" onclick="app.toggleTheme()">[B] THEME</span>
+        <span>|</span>
+        <span class="text-slate-500">v2.4_PH</span>
+      </div>
+
+      <div class="flex items-center space-x-3 text-[10px]">
+        <span id="footerSfxStatus" class="text-rpg-emerald font-bold">SFX: ON</span>
+        <span>/</span>
+        <span>LATENCY: <strong class="text-slate-300">12ms</strong></span>
+        <span>/</span>
+        <span>PHP/USD: <strong class="text-rpg-gold">56.40</strong></span>
+        <span>/</span>
+        <button onclick="app.clearAppData()" class="text-slate-500 hover:text-rose-400 underline">CLEAR CACHE</button>
+      </div>
+    </div>
+  </footer>
+
+  <!-- ========================================================================= -->
+  <!-- MODAL: GOOGLE AUTH LOGIN MODAL (Interactive & Instant)                    -->
+  <!-- ========================================================================= -->
+  <!-- MODAL: GOOGLE / GMAIL / FIREBASE AUTHENTICATION (AI Privileges Gating)      -->
+  <!-- ========================================================================= -->
+  <div id="googleAuthModal" class="fixed inset-0 bg-black/85 backdrop-blur-md z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-dungeon-900 border-2 border-emerald-500 max-w-md w-full p-6 shadow-brutal-emerald relative font-mono text-xs">
+      <button onclick="app.closeGoogleAuthModal()" class="absolute top-4 right-4 text-slate-400 hover:text-white text-xs">[X]</button>
+      
+      <div class="flex items-center gap-2 mb-2">
+        <i class="fa-brands fa-google text-rpg-gold text-2xl"></i>
+        <div>
+          <h3 class="font-bold text-white text-sm uppercase">SIGN IN WITH GOOGLE / GMAIL</h3>
+          <span class="text-[10px] text-emerald-400">FIREBASE & GEMINI AI AUTHORIZED ACCESS</span>
+        </div>
+      </div>
+
+      <p class="text-slate-300 text-xs mb-3 leading-relaxed">
+        Connect your Google identity to unlock <strong>Live Gemini 2.5 AI Analysis</strong>, <strong>Dynamic 5-Year Multiverse Simulations</strong>, and <strong>Unlimited Cloud Vault</strong>:
+      </p>
+
+      <!-- Primary: Firebase Google Auth Popup Button -->
+      <button type="button" onclick="app.signInWithFirebaseGoogle()" class="btn-brutal w-full py-2.5 px-4 bg-rpg-gold hover:bg-amber-400 text-slate-950 font-bold border border-slate-950 text-xs flex items-center justify-center gap-2 mb-2.5 shadow-brutal-gold">
+        <i class="fa-brands fa-google text-slate-950 text-sm"></i>
+        <span>SIGN IN WITH GOOGLE / FIREBASE</span>
+      </button>
+
+      <!-- Quick 1-Click Simulated Login Button -->
+      <button type="button" onclick="app.signInWithGoogle('Juan Dela Cruz', 'juan.delacruz@gmail.com')" class="btn-brutal w-full py-2 px-4 bg-white hover:bg-slate-100 text-slate-950 font-bold border border-slate-950 text-xs flex items-center justify-center gap-2 mb-3 shadow-sm">
+        <i class="fa-solid fa-bolt text-rpg-gold text-xs"></i>
+        <span>INSTANT TEST LOGIN: JUAN DELA CRUZ (GMAIL)</span>
+      </button>
+
+      <!-- Custom Profile Form Inputs -->
+      <div class="bg-slate-950 border border-slate-800 p-3 mb-3 space-y-2 text-[11px]">
+        <div class="text-[10px] text-slate-400 uppercase">OR CUSTOM GMAIL HERO IDENTITY:</div>
+        <div>
+          <label class="block text-[10px] text-slate-400 uppercase mb-0.5">Hero Call-Sign / Name:</label>
+          <input type="text" id="googleInputName" value="Maria Santos" placeholder="Your Name" class="w-full bg-dungeon-900 border border-slate-800 p-1.5 text-white font-mono text-xs focus:outline-none">
+        </div>
+        <div>
+          <label class="block text-[10px] text-slate-400 uppercase mb-0.5">Gmail Address:</label>
+          <input type="email" id="googleInputEmail" value="maria.santos@gmail.com" placeholder="your.name@gmail.com" class="w-full bg-dungeon-900 border border-slate-800 p-1.5 text-white font-mono text-xs focus:outline-none">
+        </div>
+      </div>
+
+      <!-- Firebase Setup Link / Status -->
+      <div class="mb-3 flex items-center justify-between text-[10px] font-mono text-slate-400 bg-slate-900/50 p-2 border border-slate-800">
+        <div class="flex items-center gap-1.5">
+          <span id="firebaseStatusDot" class="w-2 h-2 rounded-full bg-amber-400"></span>
+          <span id="firebaseStatusLabel">Firebase: Ready to Connect</span>
+        </div>
+        <button type="button" onclick="app.openFirebaseConfigModal()" class="text-rpg-mana hover:underline font-bold flex items-center gap-1">
+          <i class="fa-solid fa-gear"></i>
+          <span>SETUP PROJECT KEYS</span>
+        </button>
+      </div>
+
+      <div class="flex justify-between items-center">
+        <button onclick="app.signInAsGuest(); app.closeGoogleAuthModal();" class="text-slate-400 hover:text-white underline text-[11px]">
+          Continue as Guest instead
+        </button>
+        <button onclick="app.signInWithGoogle()" class="btn-brutal px-5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold border border-slate-950 shadow-sm">
+          AUTHORIZE WITH GMAIL
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================================= -->
+  <!-- MODAL: ADMIN GOOGLE GEMINI AI KEY (Shortcut: Ctrl+Shift+1)                -->
+  <!-- ========================================================================= -->
+  <div id="adminGeminiModal" class="fixed inset-0 bg-black/85 backdrop-blur-md z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-dungeon-900 border-2 border-purple-500 max-w-lg w-full p-6 shadow-brutal-purple relative">
+      <button onclick="app.closeAdminModal()" class="absolute top-4 right-4 text-slate-400 hover:text-white font-mono text-xs">[X]</button>
+      <div class="flex items-center gap-2 mb-2">
+        <i class="fa-solid fa-wand-magic-sparkles text-rpg-void text-xl"></i>
+        <h3 class="font-bold text-white font-mono text-sm uppercase">GOOGLE GEMINI LIVE AI KEY</h3>
+      </div>
+      <p class="text-xs text-slate-300 font-mono mb-4 leading-relaxed">
+        Connect your Google Gemini API key to unlock Live Multiverse Synthesis and custom Philippine What-If reasoning.
+      </p>
+      <div class="bg-slate-950 border border-slate-800 p-3 mb-4 space-y-3 font-mono text-xs">
+        <div>
+          <label class="block text-[10px] text-rpg-gold uppercase mb-1">Enter Gemini API Key:</label>
+          <input type="password" id="inputGeminiApiKey" placeholder="AIzaSy..." class="w-full bg-dungeon-900 border border-slate-800 p-2 text-white font-mono text-xs focus:outline-none">
+        </div>
+        <div>
+          <label class="block text-[10px] text-purple-400 uppercase mb-1">Model Selector:</label>
+          <select id="selectGeminiModel" onchange="app.onModelSelectChange()" class="w-full bg-dungeon-900 border border-slate-800 p-2 text-white font-mono text-xs focus:outline-none">
+            <option value="gemini-2.0-flash">gemini-2.0-flash (Fast & Accurate)</option>
+            <option value="gemini-1.5-flash">gemini-1.5-flash (Standard)</option>
+            <option value="gemini-1.5-pro">gemini-1.5-pro (High Reasoning)</option>
+            <option value="gemini-2.5-flash">gemini-2.5-flash</option>
+            <option value="custom" selected>Custom (e.g. gemini-3.6-flash)</option>
+          </select>
+        </div>
+        <div id="customModelWrapper">
+          <label class="block text-[9px] text-slate-400 uppercase mb-1">Custom Model Tag:</label>
+          <input type="text" id="inputCustomGeminiModel" value="gemini-3.6-flash" class="w-full bg-dungeon-900 border border-slate-800 p-2 text-white font-mono text-xs focus:outline-none">
+        </div>
+      </div>
+      <div class="flex justify-end gap-2 font-mono text-xs">
+        <button onclick="app.closeAdminModal()" class="px-4 py-2 bg-dungeon-950 border border-slate-800 text-slate-300">CANCEL</button>
+        <button onclick="app.saveAdminApiKey()" class="px-5 py-2 bg-purple-600 hover:bg-purple-500 text-white font-bold border border-slate-950 shadow-sm">SAVE SETTINGS</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================================= -->
+  <!-- MODAL: CUSTOM SCENARIO / DESIRE BUILDER                                   -->
+  <!-- ========================================================================= -->
+  <div id="customScenarioModal" class="fixed inset-0 bg-black/85 backdrop-blur-md z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-dungeon-900 border-2 border-purple-500 max-w-2xl w-full p-6 shadow-brutal-purple relative max-h-[90vh] overflow-y-auto">
+      <button onclick="app.closeCustomModal()" class="absolute top-4 right-4 text-slate-400 hover:text-white font-mono text-xs">[X]</button>
+      <div class="flex items-center gap-2 mb-2">
+        <i class="fa-solid fa-wand-magic-sparkles text-rpg-void text-xl"></i>
+        <h3 class="font-bold text-white font-mono text-sm uppercase">SUMMON CUSTOM MULTIVERSE DESIRE</h3>
+      </div>
+      <p class="text-xs text-slate-300 font-mono mb-4 leading-relaxed">
+        Speak your dream Philippine career leap or business venture into the simulator:
+      </p>
+
+      <div class="mb-3">
+        <span class="text-[10px] font-mono text-slate-400 uppercase block mb-1">QUICK INJECT PRESETS:</span>
+        <div class="flex flex-wrap gap-1.5 text-[11px] font-mono">
+          <button type="button" onclick="app.fillCustomPreset('Open a Specialty Coffee & Artisan Matcha Bar in Poblacion Makati with ₱400,000 capital and BIR 8% registration')" class="px-2.5 py-1 bg-dungeon-950 border border-slate-800 hover:border-rpg-void text-slate-300">
+            ☕ Specialty Cafe Poblacion
+          </button>
+          <button type="button" onclick="app.fillCustomPreset('Transition from Metro Manila on-site to 100% remote foreign clients living in Siargao with ₱150,000 buffer')" class="px-2.5 py-1 bg-dungeon-950 border border-slate-800 hover:border-rpg-void text-slate-300">
+            🌴 Siargao Remote Tech Hub
+          </button>
+          <button type="button" onclick="app.fillCustomPreset('Bootstrap a B2B Generative AI web agency for PH enterprises generating $3,500/mo retainer cashflow')" class="px-2.5 py-1 bg-dungeon-950 border border-slate-800 hover:border-rpg-void text-slate-300">
+            💻 PH B2B AI Agency
+          </button>
+        </div>
+      </div>
+
+      <div class="mb-4 font-mono text-xs">
+        <label class="block text-[10px] text-rpg-gold uppercase mb-1">Your Custom Multiverse Desire Statement:</label>
+        <textarea id="customPromptInput" rows="4" placeholder="e.g. Scale to $3,500/mo US client retainer pipeline as an AI-augmented full-stack dev while maintaining family safety net..." class="w-full bg-dungeon-950 border border-slate-800 p-3 text-white font-mono text-xs focus:outline-none resize-none"></textarea>
+      </div>
+
+      <div class="flex justify-end gap-3 font-mono text-xs">
+        <button onclick="app.closeCustomModal()" class="px-4 py-2 bg-dungeon-950 border border-slate-800 text-slate-300">CANCEL</button>
+        <button onclick="app.submitCustomScenario()" class="btn-brutal px-6 py-2 bg-purple-600 hover:bg-purple-500 text-white font-bold border border-slate-950 shadow-sm flex items-center gap-1.5">
+          <span>SUMMON TIMELINE</span>
+          <i class="fa-solid fa-sparkles"></i>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================================= -->
+  <!-- MODAL: MULTIVERSE WHAT-IF VAULT (Quota & Cloud Sync Differentiated)       -->
+  <!-- ========================================================================= -->
+  <div id="whatIfVaultModal" class="fixed inset-0 bg-black/85 backdrop-blur-md z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-dungeon-900 border-2 border-rpg-gold max-w-4xl w-full p-6 shadow-brutal-gold relative max-h-[90vh] overflow-y-auto font-mono">
+      <button onclick="app.closeWhatIfVaultModal()" class="absolute top-4 right-4 text-slate-400 hover:text-white text-xs">[X]</button>
+      
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-800 pb-3 mb-3">
+        <div class="flex items-center gap-2">
+          <i class="fa-solid fa-code-branch text-rpg-gold text-xl"></i>
+          <div>
+            <h3 class="font-bold text-white text-sm uppercase">MULTIVERSE WHAT-IF TIMELINE VAULT</h3>
+            <div id="vaultStorageQuotaLabel" class="text-[10px] text-slate-400"></div>
+          </div>
+        </div>
+        <button onclick="app.openCustomModal(); app.closeWhatIfVaultModal();" class="btn-brutal px-3.5 py-1.5 bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs border border-slate-950 flex items-center gap-1.5 self-start sm:self-auto">
+          <i class="fa-solid fa-sparkles"></i>
+          <span>+ SIMULATE NEW TIMELINE</span>
+        </button>
+      </div>
+
+      <!-- Guest Upgrade Alert Banner (Visible when guest reaches 2/2 slots) -->
+      <div id="vaultGuestUpgradeBanner" class="hidden bg-amber-950/40 border border-rpg-gold p-3 mb-4 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
+        <div class="flex items-center gap-2 text-amber-300">
+          <i class="fa-solid fa-cloud-arrow-up text-base"></i>
+          <span>Guest Vault is at capacity (2/2 slots). Sign in with Google to unlock <strong>Unlimited Cloud Storage</strong> across devices!</span>
+        </div>
+        <button onclick="app.openGoogleAuthModal(); app.closeWhatIfVaultModal();" class="btn-brutal px-3 py-1 bg-white text-slate-950 font-bold text-xs shrink-0">
+          SIGN IN WITH GOOGLE
+        </button>
+      </div>
+
+      <div id="whatIfVaultGrid" class="grid grid-cols-1 md:grid-cols-2 gap-3.5 mb-4"></div>
+
+      <div id="whatIfVaultEmpty" class="hidden text-center py-8 bg-dungeon-950 border border-slate-800 p-6">
+        <p class="text-xs text-slate-400">No What-If timelines simulated yet.</p>
+        <p class="text-[11px] text-slate-500 mt-1">Step into any portal in the Hall of Doors to generate parallel universes!</p>
+      </div>
+
+      <div class="flex justify-end pt-3 border-t border-slate-800 text-xs">
+        <button onclick="app.closeWhatIfVaultModal()" class="px-5 py-2 bg-dungeon-950 border border-slate-800 text-slate-300 hover:text-white">
+          CLOSE VAULT
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================================= -->
+  <!-- MODAL: QUEST SCROLL EXPORT (Printable Action Decree - Seal vs Watermark)  -->
+  <!-- ========================================================================= -->
+  <div id="questScrollModal" class="fixed inset-0 bg-black/85 backdrop-blur-md z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-dungeon-900 border-2 border-rpg-gold max-w-2xl w-full p-6 shadow-brutal-gold relative max-h-[90vh] overflow-y-auto">
+      <button onclick="app.closeQuestScrollModal()" class="absolute top-4 right-4 text-slate-400 hover:text-white font-mono text-xs">[X]</button>
+      
+      <div class="text-center border-b border-slate-800 pb-3 mb-3">
+        <div class="text-rpg-gold text-2xl mb-1"><i class="fa-solid fa-scroll"></i></div>
+        <div class="text-[9px] text-rpg-gold font-mono uppercase tracking-wider">LIFESIM.AI OFFICIAL HERO ACTION DECREE</div>
+        <h3 id="scrollHeroTitle" class="font-bold text-base text-white font-mono mt-1">HERO ACTION DECREE: TIMELINE ALPHA</h3>
+        <p class="text-[11px] text-slate-400 font-mono mt-0.5">Exported on <span id="scrollDate">2026-09-24</span> for Philippine Hero Realm</p>
+      </div>
+
+      <div id="scrollContentBody" class="space-y-3 text-xs font-mono text-slate-200"></div>
+
+      <div class="mt-4 pt-3 border-t border-slate-800 flex justify-between items-center font-mono text-xs">
+        <button onclick="window.print()" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white border border-slate-950">
+          <i class="fa-solid fa-print mr-1"></i> PRINT / SAVE PDF
+        </button>
+        <button onclick="app.copyScrollText()" id="btnCopyScrollText" class="px-4 py-2 bg-rpg-gold text-slate-950 font-bold border border-slate-950">
+          <i class="fa-solid fa-copy mr-1"></i> COPY TEXT
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================================= -->
+  <!-- MODAL: AI HERO ANALYSIS & DESIRE COPILOT (Step 2 Intelligent Diagnosis)    -->
+  <!-- ========================================================================= -->
+  <div id="aiHeroAnalysisModal" class="fixed inset-0 bg-black/85 backdrop-blur-md z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-dungeon-900 border-2 border-sky-500 max-w-2xl w-full p-6 shadow-brutal-cyan relative max-h-[90vh] overflow-y-auto font-mono text-xs">
+      <button onclick="app.closeAiHeroAnalysisModal()" class="absolute top-4 right-4 text-slate-400 hover:text-white text-xs">[X]</button>
+      
+      <!-- Modal Header -->
+      <div class="flex items-center gap-2.5 border-b border-slate-800 pb-3 mb-4">
+        <div class="w-8 h-8 bg-sky-950/80 border border-rpg-mana flex items-center justify-center text-rpg-mana">
+          <i class="fa-solid fa-wand-magic-sparkles text-sm"></i>
+        </div>
+        <div>
+          <div class="text-[9px] text-rpg-gold font-bold tracking-wider uppercase">BAYANIHAN COPILOT // INTELLIGENCE ENGINE</div>
+          <h3 class="font-bold text-white text-sm uppercase">AI HERO DIAGNOSTIC & DESIRE SYNTHESIZER</h3>
+        </div>
+      </div>
+
+      <!-- Loading State -->
+      <div id="aiHeroAnalysisLoading" class="py-10 text-center space-y-3">
+        <div class="w-12 h-12 mx-auto border-2 border-rpg-mana border-t-transparent rounded-full animate-spin"></div>
+        <p class="text-rpg-mana font-bold text-xs uppercase tracking-wide">ANALYZING SOCIOECONOMIC BASELINE...</p>
+        <p class="text-[10px] text-slate-400 max-w-md mx-auto">Evaluating sandwich remittance drag, commute metabolic burn, and AI multiplier velocity for Philippine reality matrix.</p>
+      </div>
+
+      <!-- Analysis Results Body -->
+      <div id="aiHeroAnalysisBody" class="hidden space-y-4">
+        
+        <!-- Auth Status Gating Banner -->
+        <div id="aiHeroAuthStatusBanner"></div>
+
+        <!-- Pillar Diagnostic Card -->
+        <div class="bg-dungeon-950 border border-slate-800 p-3.5 space-y-2">
+          <div class="flex justify-between items-center text-[10px]">
+            <span class="text-rpg-mana font-bold uppercase flex items-center gap-1.5">
+              <i class="fa-solid fa-brain"></i>
+              <span>STRATEGIC REALITY DIAGNOSIS</span>
+            </span>
+            <span id="aiHeroDiagTag" class="text-emerald-400 bg-emerald-950/60 px-1.5 py-0.5 border border-emerald-900 text-[9px]">[CALIBRATED]</span>
+          </div>
+          <p id="aiHeroDiagnosisText" class="text-slate-200 text-xs leading-relaxed">
+            <!-- Populated dynamically -->
+          </p>
+        </div>
+
+        <!-- AI Drafted North Star Desires -->
+        <div>
+          <div class="text-[10px] text-rpg-gold font-bold uppercase mb-2 flex items-center gap-1.5">
+            <i class="fa-solid fa-compass"></i>
+            <span>AI-SYNTHESIZED 5-YEAR NORTH STAR PATHWAYS:</span>
+          </div>
+
+          <div id="aiPathwaysList" class="space-y-2">
+            <!-- Populated dynamically -->
+          </div>
+        </div>
+
+        <!-- Custom Prompt Quick Polish Area -->
+        <div class="bg-dungeon-950 border border-slate-800 p-3 space-y-1.5">
+          <div class="flex justify-between text-[10px]">
+            <span class="text-slate-400 uppercase">ACTIVE SIMULATION DESIRE STATEMENT:</span>
+            <span class="text-rpg-gold font-bold">[EDITABLE]</span>
+          </div>
+          <textarea id="aiActiveDesireInput" rows="2" class="w-full bg-dungeon-900 border border-slate-800 p-2 text-white font-mono text-xs focus:outline-none resize-none"></textarea>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="flex flex-col sm:flex-row justify-between items-center gap-2 pt-2 border-t border-slate-800">
+          <button onclick="app.closeAiHeroAnalysisModal()" class="px-4 py-2 bg-dungeon-950 border border-slate-800 text-slate-300 hover:text-white w-full sm:w-auto">
+            [ESC] BACK TO CALIBRATION
+          </button>
+
+          <button onclick="app.applyAiDesireAndProceed()" class="btn-brutal px-5 py-2 bg-rpg-gold hover:bg-amber-400 text-slate-950 font-bold border border-slate-950 shadow-brutal-gold flex items-center justify-center gap-2 w-full sm:w-auto">
+            <span>SYNTHESIZE 5-YEAR DESTINY PORTALS →</span>
+            <i class="fa-solid fa-sparkles text-xs"></i>
+          </button>
+        </div>
+
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ========================================================================= -->
+  <!-- MODAL: GOOGLE GEMINI LIVE AI KEY & MODEL CONFIGURATION (Ctrl+Shift+1)     -->
+  <!-- ========================================================================= -->
+  <div id="adminGeminiModal" class="fixed inset-0 bg-black/85 backdrop-blur-md z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-dungeon-900 border-2 border-purple-500 max-w-xl w-full p-6 shadow-brutal-purple relative max-h-[90vh] overflow-y-auto font-mono text-xs">
+      <button onclick="app.closeAdminModal()" class="absolute top-4 right-4 text-slate-400 hover:text-white text-xs font-mono">[X]</button>
+      
+      <div class="flex items-center gap-2.5 mb-2">
+        <div class="w-9 h-9 bg-purple-950/80 border border-purple-400 flex items-center justify-center text-purple-300">
+          <i class="fa-solid fa-wand-magic-sparkles text-base"></i>
+        </div>
+        <div>
+          <h3 class="font-bold text-white text-sm uppercase">GOOGLE GEMINI LIVE AI ENGINE</h3>
+          <span class="text-[10px] text-purple-300">ACTIVATE REAL-TIME LLM SYNTHESIS & BESPOKE PH REASONING</span>
+        </div>
+      </div>
+
+      <p class="text-slate-300 text-xs mb-3 leading-relaxed">
+        Connect your Google Gemini API key to unlock <strong class="text-purple-300">Live Multiverse Foresight</strong>, realistic localized Philippine career narratives, custom dream interpretations, and dynamic curveballs.
+      </p>
+
+      <div class="bg-slate-950 border border-slate-800 p-3.5 mb-3 space-y-3">
+        <div>
+          <label class="block text-[10px] text-rpg-gold font-bold uppercase mb-1">Enter Gemini API Key:</label>
+          <input type="password" id="inputGeminiApiKey" placeholder="AIzaSy..." class="w-full bg-dungeon-900 border border-slate-800 p-2 text-white font-mono text-xs focus:border-purple-400 focus:outline-none">
+        </div>
+
+        <div>
+          <label class="block text-[10px] text-purple-300 font-bold uppercase mb-1">Select Gemini Model:</label>
+          <select id="selectGeminiModel" onchange="app.onModelSelectChange()" class="w-full bg-dungeon-900 border border-slate-800 p-2 text-white font-mono text-xs focus:border-purple-400 focus:outline-none">
+            <option value="gemini-2.5-flash">gemini-2.5-flash (Recommended Fast & Powerful)</option>
+            <option value="gemini-2.0-flash">gemini-2.0-flash (Ultra-Fast Response)</option>
+            <option value="gemini-1.5-flash">gemini-1.5-flash (Standard Stable)</option>
+            <option value="gemini-1.5-pro">gemini-1.5-pro (High Reasoning Complex)</option>
+            <option value="custom">Custom Model Identifier...</option>
+          </select>
+        </div>
+
+        <div id="customModelWrapper" class="hidden">
+          <label class="block text-[10px] text-slate-400 uppercase mb-1">Custom Model Identifier / Tag:</label>
+          <input type="text" id="inputCustomGeminiModel" value="gemini-2.5-flash" placeholder="e.g. gemini-2.5-flash or gemini-2.0-flash" class="w-full bg-dungeon-900 border border-slate-800 p-2 text-white font-mono text-xs focus:border-purple-400 focus:outline-none">
+        </div>
+
+        <div class="text-[10px] text-slate-400 space-y-0.5 border-t border-slate-850 pt-2">
+          <div class="text-purple-300 font-bold flex items-center gap-1"><i class="fa-solid fa-shield-halved"></i> CLIENT-SIDE DIRECT REST CALLS</div>
+          <div>Your API key is saved directly in your browser's <code>localStorage</code> and communicated strictly with Google's REST API.</div>
+        </div>
+      </div>
+
+      <div class="flex justify-between items-center">
+        <button onclick="app.closeAdminModal()" class="px-4 py-2 bg-dungeon-950 border border-slate-800 text-slate-300 hover:text-white">
+          CANCEL
+        </button>
+        <button onclick="app.saveAdminApiKey()" class="btn-brutal px-5 py-2 bg-purple-600 hover:bg-purple-500 text-white font-bold border border-slate-950 shadow-sm flex items-center gap-1.5">
+          <i class="fa-solid fa-sparkles"></i>
+          <span>SAVE & ACTIVATE GEMINI AI</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================================= -->
+  <!-- MODAL: FIREBASE PROJECT CONFIGURATION & GOOGLE AUTH SETUP                 -->
+  <!-- ========================================================================= -->
+  <div id="firebaseConfigModal" class="fixed inset-0 bg-black/85 backdrop-blur-md z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-dungeon-900 border-2 border-emerald-500 max-w-xl w-full p-6 shadow-brutal-emerald relative max-h-[90vh] overflow-y-auto font-mono text-xs">
+      <button onclick="app.closeFirebaseConfigModal()" class="absolute top-4 right-4 text-slate-400 hover:text-white text-xs">[X]</button>
+      
+      <div class="flex items-center gap-2.5 mb-2">
+        <i class="fa-solid fa-fire text-amber-500 text-2xl"></i>
+        <div>
+          <h3 class="font-bold text-white text-sm uppercase">FIREBASE CONFIGURATION // GOOGLE LOGIN</h3>
+          <span class="text-[10px] text-emerald-400">CONNECT YOUR FIREBASE PROJECT FOR LIVE GOOGLE AUTH</span>
+        </div>
+      </div>
+
+      <p class="text-slate-300 text-xs mb-3 leading-relaxed">
+        Paste your Firebase Web App configuration below to activate Google OAuth popup login:
+      </p>
+
+      <!-- JSON / Snippet Quick Paste Area -->
+      <div class="bg-slate-950 border border-slate-800 p-3 mb-3 space-y-2">
+        <div class="flex justify-between items-center text-[10px]">
+          <span class="text-rpg-gold uppercase font-bold">1-CLICK PASTE FIREBASE CONFIG SNIPPET:</span>
+          <span class="text-slate-400">AUTO-PARSER</span>
+        </div>
+        <textarea id="firebaseConfigSnippet" rows="3" 
+          placeholder='const firebaseConfig = { apiKey: "AIzaSy...", authDomain: "lifesim-ph.firebaseapp.com", projectId: "lifesim-ph", appId: "1:..." };'
+          oninput="app.onFirebaseSnippetPaste(this.value)"
+          class="w-full bg-dungeon-900 border border-slate-800 p-2 text-white font-mono text-xs focus:outline-none resize-none"></textarea>
+      </div>
+
+      <!-- Individual Credentials Fields -->
+      <div class="bg-slate-950 border border-slate-800 p-3 mb-3 space-y-2.5 text-[11px]">
+        <div class="text-[10px] text-slate-400 uppercase font-bold">OR INDIVIDUAL CREDENTIALS:</div>
+        
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+          <div>
+            <label class="block text-[10px] text-slate-400 uppercase mb-0.5">API Key (apiKey):</label>
+            <input type="password" id="fbInputApiKey" placeholder="AIzaSy..." class="w-full bg-dungeon-900 border border-slate-800 p-1.5 text-white font-mono text-xs focus:outline-none">
+          </div>
+          <div>
+            <label class="block text-[10px] text-slate-400 uppercase mb-0.5">Auth Domain (authDomain):</label>
+            <input type="text" id="fbInputAuthDomain" placeholder="your-app.firebaseapp.com" class="w-full bg-dungeon-900 border border-slate-800 p-1.5 text-white font-mono text-xs focus:outline-none">
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+          <div>
+            <label class="block text-[10px] text-slate-400 uppercase mb-0.5">Project ID (projectId):</label>
+            <input type="text" id="fbInputProjectId" placeholder="your-app-id" class="w-full bg-dungeon-900 border border-slate-800 p-1.5 text-white font-mono text-xs focus:outline-none">
+          </div>
+          <div>
+            <label class="block text-[10px] text-slate-400 uppercase mb-0.5">App ID (appId):</label>
+            <input type="text" id="fbInputAppId" placeholder="1:123456:web:abcdef" class="w-full bg-dungeon-900 border border-slate-800 p-1.5 text-white font-mono text-xs focus:outline-none">
+          </div>
+        </div>
+      </div>
+
+      <!-- Quick Step-by-Step Setup Guide -->
+      <div class="bg-emerald-950/30 border border-emerald-500/50 p-3 mb-4 text-[10px] text-emerald-300 space-y-1">
+        <div class="font-bold uppercase text-rpg-gold flex items-center gap-1.5">
+          <i class="fa-solid fa-circle-info"></i>
+          <span>QUICK FIREBASE CONSOLE CHECKLIST:</span>
+        </div>
+        <div>1. Open <a href="https://console.firebase.google.com" target="_blank" class="underline font-bold text-white">console.firebase.google.com</a> & select/create your project.</div>
+        <div>2. Go to <strong>Authentication &gt; Sign-in method</strong> &gt; Enable <strong>Google</strong> provider.</div>
+        <div>3. In <strong>Authentication &gt; Settings &gt; Authorized domains</strong>, verify <code>localhost</code> is added.</div>
+        <div>4. In <strong>Project settings &gt; General &gt; Your apps</strong>, copy the web app credentials.</div>
+      </div>
+
+      <div class="flex justify-between items-center">
+        <button onclick="app.closeFirebaseConfigModal()" class="px-4 py-2 bg-dungeon-950 border border-slate-800 text-slate-300 hover:text-white">
+          CANCEL
+        </button>
+        <button onclick="app.saveFirebaseConfig()" class="btn-brutal px-5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold border border-slate-950 shadow-sm flex items-center gap-1.5">
+          <i class="fa-solid fa-check"></i>
+          <span>SAVE & INITIALIZE FIREBASE</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Core Scripts -->
+  <script src="js/firebaseService.js"></script>
+  <script src="js/geminiService.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
