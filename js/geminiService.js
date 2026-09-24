@@ -61,6 +61,9 @@ const geminiService = {
   // --- Core API Query Runner ---
   async queryModel(prompt, modelName = null) {
     const apiKey = this.getApiKey();
+    if (modelName == null) {
+      console.warn("[geminiService] No model name provided, using default 'gemini-2.5-flash'.");
+    }
     if (!apiKey) {
       if (!this.isAiAuthorized()) {
         throw new Error('AUTH_REQUIRED: Please enter your Gemini API Key in Settings (Ctrl+Shift+1) or sign in with Google.');
